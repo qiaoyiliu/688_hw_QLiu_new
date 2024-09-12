@@ -44,6 +44,7 @@ selected_llm = st.sidebar.selectbox("Which model?",
                                     ("gpt-4o-mini", "gpt-4o",
                                     "claude-haiku", "claude-opus",
                                     "mistral-small", "mistral-medium"))
+
 if selected_llm == 'gpt-4o-mini'| 'gpt-4o':
         api_key = st.text_input("OpenAI API Key", type="password")
         #api_key = st.secrets['OPENAI_API_KEY']
@@ -69,16 +70,7 @@ elif selected_llm == 'mistral-small'| 'mistral-medium':
             st.warning("Please provide Mistral API key")
             return
 
-#which LLM selected from sidebar
-def display(selected_llm):
-    client = None
-
-   
-    #else: 
-        #st.info("Please add your OpenAI API key to continue.", icon="🗝️")
-
-    #ask user to upload file
-    uploaded_file = st.file_uploader(
+ uploaded_file = st.file_uploader(
         "Upload a document (.txt, or .pdf)", type=("txt", "pdf")
     )
 
@@ -89,9 +81,7 @@ def display(selected_llm):
     )
 
     #ask user to select language
-    languages = ['English', 'Spanish', 'French']
-    selected_language = st.selectbox('Select your language:', languages)
-    st.write(f"You have selected: {selected_language}")
+    
 
 
     question = st.text_area(
@@ -126,9 +116,12 @@ def display(selected_llm):
                 "content": f"Respond in {selected_language}. Here's a URL: {url_content} \n\n---\n\n {question}",
                 }
             ]
-        
-        #if using gpt-4o-mini
-        if selected_llm == "gpt-4o-mini":
+
+languages = ['English', 'Spanish', 'French']
+selected_language = st.selectbox('Select your language:', languages)
+st.write(f"You have selected: {selected_language}")
+
+if selected_llm == "gpt-4o-mini":
             stream = client.chat.completions.create(
                 model=selected_llm,
                 max_tokens=250,
@@ -138,8 +131,8 @@ def display(selected_llm):
             )
             
             st.write_stream(stream)
-        
-        elif selected_llm == 'claude-3-haiku-20240307':
+
+elif selected_llm == 'claude-3-haiku-20240307':
             message = client.messages.create(
                 model=selected_llm,
                 max_tokens=256,
@@ -149,7 +142,7 @@ def display(selected_llm):
             data = message.content[0].text
             st.write(data)
         
-        elif selected_llm == 'mistral-small-latest':
+elif selected_llm == 'mistral-small-latest':
             response = client.chat.complete(
                 model=selected_llm,
                 max_tokens=250,
