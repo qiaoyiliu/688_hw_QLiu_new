@@ -1,7 +1,9 @@
 import streamlit as st
 
-lab1 = st.Page("streamlit_app_lab1.py", title="Lab 1", icon=":material/add_circle:")
-lab2 = st.Page("streamlit_app_lab2.py", title="Lab 2", icon=":material/add_circle:")
-pg = st.navigation([lab1, lab2])
-st.set_page_config(page_title="688Labs", page_icon=":material/edit:")
+hw1 = st.Page("streamlit_app_hw1.py", title="HW 1", icon=":material/add_circle:")
+hw2 = st.Page("streamlit_app_hw2.py", title="HW 2", icon=":material/add_circle:")
+hw3 = st.Page("streamlit_app_hw3.py", title="HW 3", icon=":material/add_circle:")
+
+pg = st.navigation([hw1, hw2, hw3])
+st.set_page_config(page_title="688HW", page_icon=":material/edit:")
 pg.run()
