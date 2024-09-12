@@ -41,60 +41,37 @@ def read_url_content(url):
         return None
 
 
-#which LLM selected from sidebar
-def display(selected_llm):
-    client = None
+selected_llm = st.sidebar.selectbox("Which model?",
+                                    ("gpt-4o-mini", "gpt-4o",
+                                    "claude-haiku", "claude-opus",
+                                    "mistral-small", "mistral-medium"))
 
-    if selected_llm == 'gpt-4o-mini':
-        #api_key = st.text_input("OpenAI API Key", type="password")
-        api_key = st.secrets['OPENAI_API_KEY']
+if selected_llm == 'gpt-4o-mini'| 'gpt-4o':
+        api_key = st.text_input("OpenAI API Key", type="password")
+        #api_key = st.secrets['OPENAI_API_KEY']
         if api_key:
             client = OpenAI(api_key=api_key)
         else:
             st.warning("Please provide OpenAI API key")
             return
-    elif selected_llm == 'claude-3-haiku-20240307':
-        #api_key = st.text_input("Anthropic API Key", type="password")
-        api_key = st.secrets['ANTHROPIC_API_KEY']
+elif selected_llm == 'claude-3-haiku'| 'claude-3-opus':
+        api_key = st.text_input("Anthropic API Key", type="password")
+        #api_key = st.secrets['ANTHROPIC_API_KEY']
         if api_key:
             client = Anthropic(api_key=api_key)
         else:
             st.warning("Please provide Anthropic API key")
             return
-    elif selected_llm == 'mistral-small-latest':
-        #api_key = st.text_input("Mistral API Key", type="password")
-        api_key = st.secrets['MISTRAL_API_KEY']
+elif selected_llm == 'mistral-small'| 'mistral-medium':
+        api_key = st.text_input("Mistral API Key", type="password")
+        #api_key = st.secrets['MISTRAL_API_KEY']
         if api_key:
             client = Mistral(api_key=api_key)
         else:
             st.warning("Please provide Mistral API key")
             return
-    elif selected_llm == 'gpt-4o-2024-05-13':
-        api_key = st.secrets['OPENAI_API_KEY']
-        if api_key:
-            client = OpenAI(api_key=api_key)
-        else:
-            st.warning("Please provide OpenAI API key")
-            return 
-    elif selected_llm == 'claude-3-opus-20240229':
-        api_key = st.secrets['ANTHROPIC_API_KEY']
-        if api_key:
-            client = Anthropic(api_key=api_key)
-        else:
-            st.warning("Please provide Anthropic API key")
-            return
-    elif selected_llm == 'mistral-medium-latest':
-        #api_key = st.text_input("Mistral API Key", type="password")
-        api_key = st.secrets['MISTRAL_API_KEY']
-        if api_key:
-            client = Mistral(api_key=api_key)
-        else:
-            st.warning("Please provide Mistral API key")
-            return
-        #st.info("Please add your OpenAI API key to continue.", icon="🗝️")
 
-    #ask user to upload file
-    uploaded_file = st.file_uploader(
+ uploaded_file = st.file_uploader(
         "Upload a document (.txt, or .pdf)", type=("txt", "pdf")
     )
 
@@ -105,9 +82,7 @@ def display(selected_llm):
     )
 
     #ask user to select language
-    languages = ['English', 'Spanish', 'French']
-    selected_language = st.selectbox('Select your language:', languages)
-    st.write(f"You have selected: {selected_language}")
+    
 
 
     question = st.text_area(
@@ -142,22 +117,25 @@ def display(selected_llm):
                 "content": f"Respond in {selected_language}. Here's a URL: {url_content} \n\n---\n\n {question}",
                 }
             ]
-        
-        #if using gpt-4o-mini
-        if selected_llm == "gpt-4o-mini":
+
+languages = ['English', 'Spanish', 'French']
+selected_language = st.selectbox('Select your language:', languages)
+st.write(f"You have selected: {selected_language}")
+
+if selected_llm == 'gpt-4o-mini':
             stream = client.chat.completions.create(
-                model=selected_llm,
+                model='gpt-4o-mini',
                 max_tokens=250,
                 messages=messages,
                 stream=True,
                 temperature=0.5,
-            )
+        )
             
-            st.write_stream(stream)
+    st.write_stream(stream)
         
-        elif selected_llm == 'gpt-4o-2024-05-13':
+elif selected_llm == 'gpt-4o':
             stream = client.chat.completions.create(
-                model=selected_llm,
+                model='gpt-4o-2024-05-13',
                 max_tokens=250,
                 messages=messages,
                 stream=True,
@@ -166,9 +144,9 @@ def display(selected_llm):
 
             st.write_stream(stream)
         
-        elif selected_llm == 'claude-3-opus-20240229':
+elif selected_llm == 'claude-3-opus':
             message = client.messages.create(
-                model=selected_llm,
+                model='claude-3-opus-20240229',
                 max_tokens=256,
                 messages=messages,
                 temperature=0.5,
@@ -176,9 +154,9 @@ def display(selected_llm):
             data = message.content[0].text
             st.write(data)
         
-        elif selected_llm == 'mistral-small-latest':
+elif selected_llm == 'mistral-small':
             response = client.chat.complete(
-                model=selected_llm,
+                model='mistral-small-latest',
                 max_tokens=250,
                 messages=messages,
                 temperature=0.5,
@@ -186,9 +164,9 @@ def display(selected_llm):
             data = response.choices[0].message.content
             st.write(data)
 
-        elif selected_llm == 'mistral-medium-latest':
+elif selected_llm == 'mistral-medium':
             response = client.chat.complete(
-                model=selected_llm,
+                model='mistral-medium-latest',
                 max_tokens=250,
                 messages=messages,
                 temperature=0.5,
