@@ -84,6 +84,9 @@ question = st.text_area(
         disabled=not uploaded_file,
 )
 
+languages = ['English', 'Spanish', 'French']
+selected_language = st.selectbox('Select your language:', languages)
+st.write(f"You have selected: {selected_language}")
 
 if client is None:
         st.info("Please enter API key to continue.")
@@ -111,9 +114,6 @@ else:
             }
         ]
 
-languages = ['English', 'Spanish', 'French']
-selected_language = st.selectbox('Select your language:', languages)
-st.write(f"You have selected: {selected_language}")
 
 if selected_llm == "gpt-4o-mini":
             stream = client.chat.completions.create(
