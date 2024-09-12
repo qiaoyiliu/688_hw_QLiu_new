@@ -1,0 +1,8 @@
+streamlit
+openai
+pypdf
+pdfplumber
+anthropic
+mistralai
+requests
+beautifulsoup4
