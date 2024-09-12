@@ -46,22 +46,22 @@ selected_llm = st.sidebar.selectbox("Which model?",
                                     "mistral-small", "mistral-medium"))
 
 if selected_llm == 'gpt-4o-mini' or 'gpt-4o':
-        api_key = st.text_input("OpenAI API Key", type="password")
-        #api_key = st.secrets['OPENAI_API_KEY']
+        #api_key = st.text_input("OpenAI API Key", type="password")
+        api_key = st.secrets['OPENAI_API_KEY']
         if api_key:
             client = OpenAI(api_key=api_key)
         else:
             st.warning("Please provide OpenAI API key")
 elif selected_llm == 'claude-3-haiku' or 'claude-3-opus':
-        api_key = st.text_input("Anthropic API Key", type="password")
-        #api_key = st.secrets['ANTHROPIC_API_KEY']
+        #api_key = st.text_input("Anthropic API Key", type="password")
+        api_key = st.secrets['ANTHROPIC_API_KEY']
         if api_key:
             client = Anthropic(api_key=api_key)
         else:
             st.warning("Please provide Anthropic API key")
 elif selected_llm == 'mistral-small' or 'mistral-medium':
-        api_key = st.text_input("Mistral API Key", type="password")
-        #api_key = st.secrets['MISTRAL_API_KEY']
+        #api_key = st.text_input("Mistral API Key", type="password")
+        api_key = st.secrets['MISTRAL_API_KEY']
         if api_key:
             client = Mistral(api_key=api_key)
         else:
