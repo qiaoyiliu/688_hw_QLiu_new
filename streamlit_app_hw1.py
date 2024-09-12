@@ -40,12 +40,11 @@ def read_url_content(url):
         print(f"Error reading {url}:{e}")
         return None
 
-
-#which LLM selected from sidebar
-def display(selected_llm):
-    client = None
-
-    if selected_llm == 'gpt-4o-mini':
+selected_llm = st.sidebar.selectbox("Which model?",
+                                    ("gpt-4o-mini", "gpt-4o",
+                                    "claude-haiku", "claude-opus",
+                                    "mistral-small", "mistral-medium"))
+if selected_llm == 'gpt-4o-mini'| 'gpt-4o':
         api_key = st.text_input("OpenAI API Key", type="password")
         #api_key = st.secrets['OPENAI_API_KEY']
         if api_key:
@@ -53,7 +52,7 @@ def display(selected_llm):
         else:
             st.warning("Please provide OpenAI API key")
             return
-    elif selected_llm == 'claude-3-haiku-20240307':
+elif selected_llm == 'claude-3-haiku'| 'claude-3-opus':
         api_key = st.text_input("Anthropic API Key", type="password")
         #api_key = st.secrets['ANTHROPIC_API_KEY']
         if api_key:
@@ -61,7 +60,7 @@ def display(selected_llm):
         else:
             st.warning("Please provide Anthropic API key")
             return
-    elif selected_llm == 'mistral-small-latest':
+elif selected_llm == 'mistral-small'| 'mistral-medium':
         api_key = st.text_input("Mistral API Key", type="password")
         #api_key = st.secrets['MISTRAL_API_KEY']
         if api_key:
@@ -69,6 +68,12 @@ def display(selected_llm):
         else:
             st.warning("Please provide Mistral API key")
             return
+
+#which LLM selected from sidebar
+def display(selected_llm):
+    client = None
+
+   
     #else: 
         #st.info("Please add your OpenAI API key to continue.", icon="🗝️")
 
