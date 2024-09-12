@@ -40,61 +40,58 @@ def read_url_content(url):
         print(f"Error reading {url}:{e}")
         return None
 
-
 selected_llm = st.sidebar.selectbox("Which model?",
                                     ("gpt-4o-mini", "gpt-4o",
                                     "claude-haiku", "claude-opus",
                                     "mistral-small", "mistral-medium"))
 
-if selected_llm == 'gpt-4o-mini'| 'gpt-4o':
+if selected_llm == 'gpt-4o-mini' or 'gpt-4o':
         api_key = st.text_input("OpenAI API Key", type="password")
         #api_key = st.secrets['OPENAI_API_KEY']
         if api_key:
             client = OpenAI(api_key=api_key)
         else:
             st.warning("Please provide OpenAI API key")
-            return
-elif selected_llm == 'claude-3-haiku'| 'claude-3-opus':
+elif selected_llm == 'claude-3-haiku' or 'claude-3-opus':
         api_key = st.text_input("Anthropic API Key", type="password")
         #api_key = st.secrets['ANTHROPIC_API_KEY']
         if api_key:
             client = Anthropic(api_key=api_key)
         else:
             st.warning("Please provide Anthropic API key")
-            return
-elif selected_llm == 'mistral-small'| 'mistral-medium':
+elif selected_llm == 'mistral-small' or 'mistral-medium':
         api_key = st.text_input("Mistral API Key", type="password")
         #api_key = st.secrets['MISTRAL_API_KEY']
         if api_key:
             client = Mistral(api_key=api_key)
         else:
             st.warning("Please provide Mistral API key")
-            return
 
- uploaded_file = st.file_uploader(
+uploaded_file = st.file_uploader(
         "Upload a document (.txt, or .pdf)", type=("txt", "pdf")
-    )
+)
 
     #or ask user to paster URL
-    question_url = st.text_area(
+question_url = st.text_area(
         "Or insert an URL:",
         placeholder="Copy URL here",
-    )
-
-    #ask user to select language
-    
+)
 
 
-    question = st.text_area(
+question = st.text_area(
         "Now ask a question about the document!",
         placeholder="Can you give me a short summary?",
         disabled=not uploaded_file,
-    )
+)
 
-    if client is None:
+languages = ['English', 'Spanish', 'French']
+selected_language = st.selectbox('Select your language:', languages)
+st.write(f"You have selected: {selected_language}")
+
+if client is None:
         st.info("Please enter API key to continue.")
-    else:
-        if uploaded_file and question:
+else:
+    if uploaded_file and question:
             file_extension = uploaded_file.name.split('.')[-1]
             if file_extension == 'txt':
                 document = uploaded_file.read().decode()
@@ -102,79 +99,84 @@ elif selected_llm == 'mistral-small'| 'mistral-medium':
                 document = read_pdf(uploaded_file)
             else:
                 st.error("Unsupported file type.")
-            messages = [
+                messages = [
                 {
                     "role": "user",
                     "content": f"Respond in {selected_language}. Here's a document: {document} \n\n---\n\n {question}",
                 }
-            ]
-        
-        else:
-            url_content = read_url_content(question_url)
-            messages = [
-                {
-                "role": "user",
-                "content": f"Respond in {selected_language}. Here's a URL: {url_content} \n\n---\n\n {question}",
-                }
-            ]
+                ]       
+    else:
+        url_content = read_url_content(question_url)
+        messages = [
+            {
+            "role": "user",
+            "content": f"Respond in {selected_language}. Here's a URL: {url_content} \n\n---\n\n {question}",
+            }
+        ]
 
-languages = ['English', 'Spanish', 'French']
-selected_language = st.selectbox('Select your language:', languages)
-st.write(f"You have selected: {selected_language}")
 
-if selected_llm == 'gpt-4o-mini':
-            stream = client.chat.completions.create(
-                model='gpt-4o-mini',
-                max_tokens=250,
-                messages=messages,
-                stream=True,
-                temperature=0.5,
+if selected_llm == "gpt-4o-mini":
+    stream = client.chat.completions.create(
+            model="gpt-4o-mini",
+            max_tokens=250,
+            messages=messages,
+            stream=True,
+            temperature=0.5,
         )
             
     st.write_stream(stream)
-        
-elif selected_llm == 'gpt-4o':
-            stream = client.chat.completions.create(
-                model='gpt-4o-2024-05-13',
-                max_tokens=250,
+
+elif selected_llm == "gpt-4o":
+    stream = client.chat.completions.create(
+            model="gpt-4o",
+            max_tokens=250,
+            messages=messages,
+            stream=True,
+            temperature=0.5,
+        )
+            
+    st.write_stream(stream)
+            
+
+elif selected_llm == 'claude-3-haiku':
+     message = client.messages.create(
+                model='claude-3-haiku-20240307',
+                max_tokens=256,
                 messages=messages,
-                stream=True,
                 temperature=0.5,
             )
+     data = message.content[0].text
+     st.write(data)
 
-            st.write_stream(stream)
-        
 elif selected_llm == 'claude-3-opus':
-            message = client.messages.create(
+     message = client.messages.create(
                 model='claude-3-opus-20240229',
                 max_tokens=256,
                 messages=messages,
                 temperature=0.5,
             )
-            data = message.content[0].text
-            st.write(data)
-        
+     data = message.content[0].text
+     st.write(data)
+
 elif selected_llm == 'mistral-small':
-            response = client.chat.complete(
-                model='mistral-small-latest',
-                max_tokens=250,
-                messages=messages,
-                temperature=0.5,
-            )
-            data = response.choices[0].message.content
-            st.write(data)
-
-elif selected_llm == 'mistral-medium':
-            response = client.chat.complete(
-                model='mistral-medium-latest',
-                max_tokens=250,
-                messages=messages,
-                temperature=0.5,
-            )
-            data = response.choices[0].message.content
-            st.write(data)
+    response = client.chat.complete(
+            model='mistral-small-latest',
+            max_tokens=250,
+            messages=messages,
+            temperature=0.5,
+        )
+    data = response.choices[0].message.content
+    st.write(data)
     
-
+elif selected_llm == 'mistral-medium':
+    response = client.chat.complete(
+            model='mistral-medium-latest',
+            max_tokens=250,
+            messages=messages,
+            temperature=0.5,
+        )
+    data = response.choices[0].message.content
+    st.write(data)
 
 
 
