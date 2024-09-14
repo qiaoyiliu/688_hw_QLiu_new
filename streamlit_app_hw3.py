@@ -198,7 +198,7 @@ if prompt := st.chat_input("What is up?"):
         try:
             message = client.completions.create(
                 model='claude-3-haiku-20240307',
-                max_tokens=256,
+                max_tokens_to_sample==256,
                 prompt=prompt_for_claude,  # Using prompt instead of messages
                 temperature=0.5
             )
@@ -215,7 +215,7 @@ if prompt := st.chat_input("What is up?"):
         try:
             message = client.completions.create(
                 model='claude-3-opus-20240229',
-                max_tokens=256,
+                max_tokens_to_sample=256,
                 prompt=prompt_for_claude,  # Using prompt instead of messages
                 temperature=0.5
             )
