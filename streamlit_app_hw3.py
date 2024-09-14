@@ -44,13 +44,18 @@ def summarize_with_llm(content, selected_llm):
         return data.choices[0].message.content
 
     elif selected_llm == 'claude-3-haiku':
-        message = client.messages.create(
-            model='claude-3-haiku-20240307',
-            max_tokens=256,
-            messages=[{"role": "user", "content": prompt}],
-            temperature=0.5
-        )
-        return message.content[0].text
+        try:
+            message = client.messages.create(
+                model='claude-3-haiku-20240307',
+                max_tokens=256,
+                messages=messages,
+                temperature=0.5
+            )
+            response_content = message.content[0].text
+        except Exception as e:
+            st.error(f"Error with Claude: {e}")
+            response_content = "There was an issue processing your request with Claude."
+
 
     elif selected_llm == 'claude-3-opus':
         message = client.messages.create(
