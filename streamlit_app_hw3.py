@@ -226,4 +226,8 @@ if prompt := st.chat_input("What is up?"):
         response_content = response.choices[0].message.content
 
     # Store the LLM response in session state
-    st.session_state['messages'].append({"role": "assistant", "
+    st.session_state['messages'].append({"role": "assistant", "content": response_content})
+
+    # Display the LLM response
+    with st.chat_message("assistant"):
+        st.markdown(response_content)
