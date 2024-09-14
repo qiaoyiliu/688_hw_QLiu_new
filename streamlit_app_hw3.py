@@ -32,7 +32,7 @@ def summarize_with_llm(content, selected_llm):
             messages=[{"role": "user", "content": prompt}],
             temperature=0.5,
         )
-        return data.choices[0].message['content']
+        return data.choices[0].message.content
 
     elif selected_llm == "gpt-4o":
         data = client.chat.completions.create(
@@ -41,7 +41,7 @@ def summarize_with_llm(content, selected_llm):
             messages=[{"role": "user", "content": prompt}],
             temperature=0.5,
         )
-        return data.choices[0].message['content']
+        return data.choices[0].message.content
 
     elif selected_llm == 'claude-3-haiku':
         message = client.messages.create(
