@@ -15,8 +15,8 @@ def summarize_url(url):
         response = requests.get(url)
         soup = BeautifulSoup(response.text, 'html.parser')
         paragraphs = soup.find_all('p')
-        content = ' '.join([para.text for para in paragraphs[:5]])  # Take first 5 paragraphs
-        return content[:1000]  # Limit summary to 1000 characters
+        content = ' '.join([para.text for para in paragraphs[:30]])  # Take first 5 paragraphs
+        return content[:2000]  # Limit summary to 1000 characters
     except Exception as e:
         return "There was an error fetching the URL content."
 
