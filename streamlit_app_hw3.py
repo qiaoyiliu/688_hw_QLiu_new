@@ -190,40 +190,22 @@ if prompt := st.chat_input("What is up?"):
         response_content = data.choices[0].message.content
 
     elif selected_llm == 'claude-3-haiku':
-    # Combine all messages into a single string following Claude's input format
-        prompt_for_claude = "\n\n".join(
-            f"Human: {msg['content']}" if msg['role'] == "user" else f"Assistant: {msg['content']}"
-            for msg in st.session_state['messages']
+        message = client.messages.create(
+            model='claude-3-haiku-20240307',
+            max_tokens=256,
+            messages=messages,
+            temperature=0.5
         )
-        try:
-            message = client.completions.create(
-                model='claude-3-haiku-20240307',
-                max_tokens_to_sample==256,
-                prompt=prompt_for_claude,  # Using prompt instead of messages
-                temperature=0.5
-            )
-            response_content = message.completion
-        except Exception as e:
-            st.error(f"Error with Claude: {e}")
-            response_content = "There was an issue processing your request with Claude."
+        response_content = message.content[0].text
 
     elif selected_llm == 'claude-3-opus':
-        prompt_for_claude = "\n\n".join(
-            f"Human: {msg['content']}" if msg['role'] == "user" else f"Assistant: {msg['content']}"
-            for msg in st.session_state['messages']
+        message = client.messages.create(
+            model='claude-3-opus-20240229',
+            max_tokens=256,
+            messages=messages,
+            temperature=0.5
         )
-        try:
-            message = client.completions.create(
-                model='claude-3-opus-20240229',
-                max_tokens_to_sample=256,
-                prompt=prompt_for_claude,  # Using prompt instead of messages
-                temperature=0.5
-            )
-            response_content = message.completion
-        except Exception as e:
-            st.error(f"Error with Claude: {e}")
-            response_content = "There was an issue processing your request with Claude."
-
+        response_content = message.content[0].text
 
     elif selected_llm == 'mistral-small':
         response = client.chat.complete(
