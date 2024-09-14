@@ -112,6 +112,10 @@ elif selected_llm in ['mistral-small', 'mistral-medium']:
     else:
         st.warning("Please provide Mistral API key")
 
+if client is None:
+    st.error("Client is not initialized. Please check the API key.")
+else:
+
 # Initialize session state for messages and summaries
 if 'messages' not in st.session_state:
     st.session_state['messages'] = []
