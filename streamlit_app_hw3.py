@@ -177,7 +177,7 @@ if prompt := st.chat_input("What is up?"):
             stream=False,
             temperature=0.5,
         )
-        response_content = data.choices[0].message['content']
+        response_content = data.choices[0].message.content
 
     elif selected_llm == "gpt-4o":
         data = client.chat.completions.create(
@@ -187,7 +187,7 @@ if prompt := st.chat_input("What is up?"):
             stream=False,
             temperature=0.5,
         )
-        response_content = data.choices[0].message['content']
+        response_content = data.choices[0].message.content
 
     elif selected_llm == 'claude-3-haiku':
         message = client.messages.create(
