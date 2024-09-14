@@ -190,14 +190,6 @@ if prompt := st.chat_input("What is up?"):
         response_content = data.choices[0].message.content
 
     elif selected_llm == 'claude-3-haiku':
-        filtered_messages = [
-            msg for msg in st.session_state['messages'] if msg['role'] != "system"
-        ]   
-        prompt_for_claude = "\n\n".join(
-            f"Human: {msg['content']}" if msg['role'] == "user" else f"Assistant: {msg['content']}"
-            for msg in filtered_messages
-        )
-        
         message = client.messages.create(
             model='claude-3-haiku-20240307',
             max_tokens=256,
