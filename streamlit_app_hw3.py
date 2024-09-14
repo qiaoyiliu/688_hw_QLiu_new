@@ -43,18 +43,23 @@ def summarize_with_llm(content, selected_llm):
         )
         return data.choices[0].message.content
 
-    elif selected_llm == 'claude-3-haiku' or selected_llm == 'claude-3-opus':
-        prompt_for_claude = f"Human: {prompt}"  # Format prompt for Claude
-        try:
-            message = client.completions.create(
-                model='claude-3-haiku-20240307' if selected_llm == 'claude-3-haiku' else 'claude-3-opus-20240229',
-                max_tokens_to_sample=256,
-                prompt=prompt_for_claude,
-                temperature=0.5
-            )
-            return message.completion
-        except Exception as e:
-            return f"Error with Claude: {e}"
+    elif selected_llm == 'claude-3-haiku':
+        message = client.messages.create(
+            model='claude-3-haiku-20240307',
+            max_tokens=256,
+            messages=[{"role": "user", "content": prompt}],
+            temperature=0.5
+        )
+        return message.content[0].text
+
+    elif selected_llm == 'claude-3-opus':
+        message = client.messages.create(
+            model='claude-3-opus-20240229',
+            max_tokens=256,
+            messages=[{"role": "user", "content": prompt}],
+            temperature=0.5
+        )
+        return message.content[0].text
 
     elif selected_llm == 'mistral-small':
         response = client.chat.complete(
@@ -161,14 +166,14 @@ if prompt := st.chat_input("What is up?"):
         st.markdown(prompt)
 
     # Prepare messages for the LLM API call
-    filtered_messages = [{"role": msg["role"], "content": msg["content"]} for msg in st.session_state['messages'] if msg["role"] != "system"]
+    messages = [{"role": msg["role"], "content": msg["content"]} for msg in st.session_state['messages']]
 
     # Call the selected LLM based on user selection
     if selected_llm == "gpt-4o-mini":
         data = client.chat.completions.create(
             model="gpt-4o-mini",
             max_tokens=250,
-            messages=filtered_messages,
+            messages=messages,
             stream=False,
             temperature=0.5,
         )
@@ -178,33 +183,35 @@ if prompt := st.chat_input("What is up?"):
         data = client.chat.completions.create(
             model="gpt-4o",
             max_tokens=250,
-            messages=filtered_messages,
+            messages=messages,
             stream=False,
             temperature=0.5,
         )
         response_content = data.choices[0].message.content
 
-    elif selected_llm == 'claude-3-haiku' or selected_llm == 'claude-3-opus':
-        prompt_for_claude = "\n\n".join(
-            f"Human: {msg['content']}" if msg['role'] == "user" else f"Assistant: {msg['content']}"
-            for msg in filtered_messages
+    elif selected_llm == 'claude-3-haiku':
+        message = client.messages.create(
+            model='claude-3-haiku-20240307',
+            max_tokens=256,
+            messages=messages,
+            temperature=0.5
         )
-        try:
-            message = client.completions.create(
-                model='claude-3-haiku-20240307' if selected_llm == 'claude-3-haiku' else 'claude-3-opus-20240229',
-                max_tokens_to_sample=256,
-                prompt=prompt_for_claude,
-                temperature=0.5
-            )
-            response_content = message.completion
-        except Exception as e:
-            response_content = f"Error with Claude: {e}"
+        response_content = message.content[0].text
+
+    elif selected_llm == 'claude-3-opus':
+        message = client.messages.create(
+            model='claude-3-opus-20240229',
+            max_tokens=256,
+            messages=messages,
+            temperature=0.5
+        )
+        response_content = message.content[0].text
 
     elif selected_llm == 'mistral-small':
         response = client.chat.complete(
             model='mistral-small-latest',
             max_tokens=250,
-            messages=filtered_messages,
+            messages=messages,
             temperature=0.5,
         )
         response_content = response.choices[0].message.content
@@ -213,7 +220,7 @@ if prompt := st.chat_input("What is up?"):
         response = client.chat.complete(
             model='mistral-medium-latest',
             max_tokens=250,
-            messages=filtered_messages,
+            messages=messages,
             temperature=0.5,
         )
         response_content = response.choices[0].message.content
