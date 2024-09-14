@@ -1,193 +1,181 @@
 import streamlit as st
 from openai import OpenAI
-import requests
+from anthropic import Anthropic
+from anthropic.types.message import Message   # Assuming this is the correct Anthropic client
+from mistralai import Mistral  # Assuming this is the correct Mistral client
 from bs4 import BeautifulSoup
+import requests
 
+# Title
+st.title("Joy's HW3 Multi-LLM Chatbot with URL Summarization")
 
-def read_url_content(url):
-     try:
-        response=requests.get(url)
-        response.raise_for_status() 
-        soup=BeautifulSoup(response.content, 'html.parser')
-        return soup.get_text()
-     except requests.RequestException as e:
-        print(f"Error reading {url}:{e}")
-        return None
-     
-# Show title and description.
-st.title("Joy's HW3 question answering chatbot")
+# Function to summarize URL content
+def summarize_url(url):
+    try:
+        response = requests.get(url)
+        soup = BeautifulSoup(response.text, 'html.parser')
+        paragraphs = soup.find_all('p')
+        content = ' '.join([para.text for para in paragraphs[:5]])  # Take first 5 paragraphs
+        return content[:1000]  # Limit summary to 1000 characters
+    except Exception as e:
+        return "There was an error fetching the URL content."
 
-llm_model = st.sidebar.selectbox("Which model?",
-                                    ("gpt-4o-mini", "gpt-4o")
-                                     #"claude-haiku, claude-opus",
-                                     #"mistral-small", "mistral-medium")
+# Sidebar to choose LLM and URL options
+selected_llm = st.sidebar.selectbox(
+    "Choose an LLM model:",
+    ("gpt-4o-mini", "gpt-4o", "claude-3-haiku", "claude-3-opus", "mistral-small", "mistral-medium")
 )
 
-if llm_model == "gpt-4o-mini":
-    model_to_use = "gpt-4o-mini"
-elif llm_model == "gpt-4o":
-    model_to_use = "gpt_4o"
-#elif llm_model == "claude-haiku":
-#    model_to_use = "claude-3-haiku-20240307"
-#elif llm_model == "claude-opus":
-#    model_to_use = "claude-3-opus-20240229"
-#elif llm_model == "mistral-small":
-#    model_to_use = "mistral-small-latest"
-#elif llm_model == "mistral-medium":
-#    model_to_use = "mistral-medium-latest"
+url_option = st.sidebar.radio(
+    "Choose the number of URLs to summarize:",
+    ("1 URL", "2 URLs")
+)
 
-whether_url = st.sidebar.selectbox("Whether input 2 URLs?",
-                                   ("Yes", "No"))
+# Ask for API keys based on selected LLM
+if selected_llm in ['gpt-4o-mini', 'gpt-4o']:
+    api_key = st.secrets['OPENAI_API_KEY']
+    if api_key:
+        client = OpenAI(api_key=api_key)
+    else:
+        st.warning("Please provide OpenAI API key")
 
+elif selected_llm in ['claude-3-haiku', 'claude-3-opus']:
+    api_key = st.secrets['ANTHROPIC_API_KEY']
+    if api_key:
+        client = Anthropic(api_key=api_key)
+    else:
+        st.warning("Please provide Anthropic API key")
 
-memory_option = st.sidebar.selectbox("Which type of LLM short-term memory?",
-                                     ("Buffer of 5 questions", "Conversation summary", "Buffer of 5,000 tokens"))
+elif selected_llm in ['mistral-small', 'mistral-medium']:
+    api_key = st.secrets['MISTRAL_API_KEY']
+    if api_key:
+        client = Mistral(api_key=api_key)
+    else:
+        st.warning("Please provide Mistral API key")
 
+# Initialize session state for messages and summaries
+if 'messages' not in st.session_state:
+    st.session_state['messages'] = []
+if 'url_summary_1' not in st.session_state:
+    st.session_state['url_summary_1'] = None
+if 'url_summary_2' not in st.session_state:
+    st.session_state['url_summary_2'] = None
+if 'summary_added' not in st.session_state:
+    st.session_state['summary_added'] = False
 
-if "client" not in st.session_state:
-    #openai_api_key = st.secrets["OPENAI_API_KEY"]
-    openai_api_key = st.text_input("Insert OpenAI API Key", type="password")
-    st.session_state.client = OpenAI(api_key=openai_api_key)
+# First URL
+question_url_1 = st.text_area("Insert the first URL:", placeholder="Copy the first URL here")
+if question_url_1 and not st.session_state['summary_added']:
+    st.session_state['url_summary_1'] = summarize_url(question_url_1)
+    if st.session_state['url_summary_1']:
+        st.session_state['messages'].insert(0, {
+            "role": "system",
+            "content": f"Summary of the first URL: {st.session_state['url_summary_1']}"
+        })
+        st.session_state['summary_added'] = True
 
-if whether_url == "Yes":
-    question_url_1 = st.text_area("Insert first URL:", 
-                                    placeholder="Copy URL here",)
-    question_url_2 = st.text_area("Insert second URL (optional):", 
-                                    placeholder="Copy URL here",)
-else:
-    question_url_1 = st.text_area("Insert first URL:", 
-                                    placeholder="Copy URL here",)
+# Handle second URL if selected
+if url_option == "2 URLs":
+    question_url_2 = st.text_area("Insert the second URL:", placeholder="Copy the second URL here")
+    if question_url_2 and not st.session_state.get('summary_added_2', False):
+        st.session_state['url_summary_2'] = summarize_url(question_url_2)
+        if st.session_state['url_summary_2']:
+            st.session_state['messages'].insert(1, {
+                "role": "system",
+                "content": f"Summary of the second URL: {st.session_state['url_summary_2']}"
+            })
+            st.session_state['summary_added_2'] = True
 
-#choose buffer of 5 questions------------------------------------------
-if memory_option == "Buffer of 5 questions":
-    if "messages" not in st.session_state:
-        st.session_state.messages = []
-    
-    if "questions_buffer" not in st.session_state:
-        st.session_state.questions_buffer = []
-    
-    def update_q_buffer(new_q):
-        st.session_state["messages"].append(new_q)
-        st.session_state["messages"] = st.session_state["messages"][-5:]
-    
-    question = read_url_content(question_url_1)
+# Sidebar for memory management options
+memory_option = st.sidebar.radio(
+    "Choose how to store memory:",
+    ("Last 5 questions", "Summary of entire conversation", "Last 5,000 tokens")
+)
 
-    for msg in st.session_state.messages:
-        with st.chat_message(msg["role"]):
-            st.write(msg["content"])
+# Display the existing chat messages
+for message in st.session_state['messages']:
+    with st.chat_message(message["role"]):
+        st.markdown(message["content"])
 
-    if prompt := st.chat_input("Ask me anything?"):
-        st.session_state.messages.append({"role": "user", "content": prompt})
-        with st.chat_message("user"):
-            st.markdown(prompt)
-    update_q_buffer(prompt)
+# Chat input field for user messages
+if prompt := st.chat_input("What is up?"):
+    # Append user input to session state
+    st.session_state['messages'].append({"role": "user", "content": prompt})
+    with st.chat_message("user"):
+        st.markdown(prompt)
 
-    client = st.session_state.client
-    stream = client.chat.completions.create(
-        model=model_to_use,
-        messages=st.session_state.messages,
-        stream=True,
-    )
+    # Prepare messages for the LLM API call
+    messages = [{"role": msg["role"], "content": msg["content"]} for msg in st.session_state['messages']]
 
-    with st.chat_message("assistant"):
-        response = st.write_stream(stream)
-    st.session_state.messages.append({"role": "assistant", "content": response})
-
-    if st.button("Submit URL"):
-        if question_url_1:
-            url_content = read_url_content(question_url_1)
-            if url_content:
-                st.session_state.messages.append({"role": "user", "content": f"URL Content from {url_input}"})
-                with st.chat_message("user"):
-                    st.markdown(f"URL Content from {question_url_1}")
-                update_q_buffer(url_content[:1000])
-
-    if st.session_state.questions_buffer:
-        st.write("Last 5 questions were:")
-        for i, question in enumerate(st.session_state.questions_buffer,1):
-            st.write(f"{i}. {question}")
-
-#choose summary of conversation:
-elif memory_option == "Conversation summary":
-    if "messages" not in st.session_state:
-        st.session_state.messages = []
-    
-    def summarize_conversation(messages):
-        try:
-            conversation_log = "\n".join([f'{msg["role"]}: {msg["content"]}' for msg in messages])
-            client = st.session_state.client
-            response = OpenAI.Completion.create(
-                engine="gpt-4o-mini",
-                prompt=f"Summarize the following conversation:\n{conversation_log}\nSummary:",
-                max_tokens=150,
-            )   
-            return response.choices[0].text.strip()
-        except Exception as e:
-            return f"Error in summarizing: {e}"
-
-    for msg in st.session_state.messages:
-        with st.chat_message(msg["role"]):
-            st.write(msg["content"])
-
-    if prompt := st.chat_input("Ask me anything?"):
-        st.session_state.messages.append({"role": "user", "content": prompt})
-        with st.chat_message("user"):
-            st.markdown(prompt)
-
-        client = st.session_state.client
-        stream = client.chat.completions.create(
-            model=model_to_use,
-            messages=st.session_state.messages,
+    # Call the selected LLM based on user selection
+    if selected_llm == "gpt-4o-mini":
+        data = client.chat.completions.create(
+            model="gpt-4o-mini",
+            max_tokens=250,
+            messages=messages,
             stream=True,
+            temperature=0.5,
         )
+        st.write_stream(data)
 
-        with st.chat_message("assistant"):
-            response = st.write_stream(stream)
-        st.session_state.messages.append({"role": "assistant", "content": response})
-
-    if st.button("Summarize Conversation"):
-        if st.session_state.messages:
-            summary = summarize_conversation(st.session_state.messages)
-            st.write("Conversation Summary:")
-            st.write(summary)
-        else:
-            st.write("No conversation history to summarize.")    
-
-elif memory_option == "Buffer of 5,000 tokens":
-    def count_tokens(text):
-        return len(text.split())
-    
-    if "messages" not in st.session_state:
-        st.session_state.messages = []
-    if "token_count" not in st.session_state:
-        st.session_state.token_count = 0
-    
-    def update_chat_history_and_token_count(role, content):
-        new_tokens = count_tokens(content)
-        st.session_state.messages.append({"role": role, "content": content})
-        st.session_state.token_count += new_tokens
-        while st.session_state.token_count > 5000:
-            oldest_message = st.session_state.messages.pop(0)
-            st.session_state.token_count -= count_tokens(oldest_message["content"])
-
-    for msg in st.session_state.messages:
-        with st.chat_message(msg["role"]):
-            st.write(msg["content"])
-
-    if prompt := st.chat_input("Ask me anything?"):
-        update_chat_history_and_token_count("user", prompt)
-        with st.chat_message("user"):
-            st.markdown(prompt)        
-
-        client = st.session_state.client
-        stream = client.chat.completions.create(
-            model=model_to_use,
-            messages=st.session_state.messages,
+    elif selected_llm == "gpt-4o":
+        data = client.chat.completions.create(
+            model="gpt-4o",
+            max_tokens=250,
+            messages=messages,
             stream=True,
+            temperature=0.5,
         )
-        with st.chat_message("assistant"):
-            response = st.write_stream(stream)
-        update_chat_history_and_token_count("assistant", response)
+        st.write_stream(data)
 
-        st.write(f"Total tokens used in the conversation: {st.session_state.token_count} / 5000")
+    elif selected_llm == 'claude-3-haiku':
+        # Move 'system' role to top-level parameter for Anthropic models
+        system_prompt = [msg['content'] for msg in messages if msg['role'] == 'system']
+        conversation = [msg for msg in messages if msg['role'] != 'system']
+        
+        message = client.messages.create(
+            model='claude-3-haiku-20240307',
+            max_tokens=256,
+            messages=conversation,
+            temperature=0.5,
+            system=system_prompt[0] if system_prompt else None  # Top-level system parameter
+        )
+        data = message.content[0].text
+        st.write(data)
 
+    elif selected_llm == 'claude-3-opus':
+        system_prompt = [msg['content'] for msg in messages if msg['role'] == 'system']
+        conversation = [msg for msg in messages if msg['role'] != 'system']
+        
+        message = client.messages.create(
+            model='claude-3-opus-20240229',
+            max_tokens=256,
+            messages=conversation,
+            temperature=0.5,
+            system=system_prompt[0] if system_prompt else None
+        )
+        data = message.content[0].text
+        st.write(data)
+
+    elif selected_llm == 'mistral-small':
+        response = client.chat.complete(
+            model='mistral-small-latest',
+            max_tokens=250,
+            messages=messages,
+            temperature=0.5,
+        )
+        data = response.choices[0].message.content
+        st.write(data)
+
+    elif selected_llm == 'mistral-medium':
+        response = client.chat.complete(
+            model='mistral-medium-latest',
+            max_tokens=250,
+            messages=messages,
+            temperature=0.5,
+        )
+        data = response.choices[0].message.content
+        st.write(data)
+
+    # Store the LLM response in session state
+    st.session_state['messages'].append({"role": "assistant", "content": data})
