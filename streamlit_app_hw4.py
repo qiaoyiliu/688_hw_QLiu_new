@@ -9,14 +9,11 @@ import chromadb
 
 st.title("Joy's HW4 Question Answering Chatbot")
 
-# Sidebar for selecting topics
 topic = st.sidebar.selectbox("Topic", ("Generative AI", "Text Mining", "Data Science Overview"))
 
-# Initialize ChromaDB Client
 chroma_client = chromadb.PersistentClient(path="~/embeddings")
 #chroma_client = chromadb.Client()
 
-# PDF Reading Function
 def read_pdf(file):
     file_name = file.name  
     pdf_content = ""
@@ -25,10 +22,9 @@ def read_pdf(file):
             pdf_content += page.extract_text()
         return file_name, pdf_content
 
-# File Uploader
 uploaded_file = st.file_uploader("Upload a document (.pdf)", type=("pdf"))
 
-# Initialize OpenAI Client if not already in session state
+
 if "openai_client" not in st.session_state:
     openai_api_key = st.secrets['OPENAI_API_KEY']
     #openai_api_key = st.text_input("OpenAI API Key", type="password")
@@ -36,11 +32,11 @@ if "openai_client" not in st.session_state:
         st.session_state.openai_client = openai
         openai.api_key = openai_api_key
 
-# Initialize ChromaDB Collection if not already in session state
+
 if "Lab4_vectorDB" not in st.session_state and "openai_client" in st.session_state:
     st.session_state.Lab4_vectorDB = chroma_client.get_or_create_collection(name="Lab4Collection")
 
-# Function to Add PDF Content to ChromaDB Collection
+
 def add_to_collection(collection, text, filename):
     openai_client = st.session_state.openai_client
     response = openai_client.embeddings.create(
@@ -55,7 +51,7 @@ def add_to_collection(collection, text, filename):
         embeddings=[embedding]
     )
 
-# Process Uploaded File and Store Content in Vector DB
+
 if uploaded_file is not None and "Lab4_vectorDB" in st.session_state:
     filename, text = read_pdf(uploaded_file)
     add_to_collection(st.session_state.Lab4_vectorDB, text, filename)
