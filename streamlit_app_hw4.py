@@ -66,7 +66,7 @@ query_response = openai_client.embeddings.create(
     input=topic,
     model="text-embedding-3-small"
 )
-query_embedding = query_response['data'][0]['embedding']
+query_embedding = query_response.data[0].embedding
 results = st.session_state.Lab4_vectorDB.query(
             query_embeddings=[query_embedding],
             n_results=3
