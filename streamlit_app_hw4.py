@@ -13,7 +13,8 @@ st.title("Joy's HW4 Question Answering Chatbot")
 topic = st.sidebar.selectbox("Topic", ("Generative AI", "Text Mining", "Data Science Overview"))
 
 # Initialize ChromaDB Client
-chroma_client = chromadb.Client()
+chroma_client = chromadb.PersistentClient(path="~/embeddings")
+#chroma_client = chromadb.Client()
 
 # PDF Reading Function
 def read_pdf(file):
