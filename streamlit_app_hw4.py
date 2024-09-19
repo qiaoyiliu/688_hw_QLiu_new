@@ -47,8 +47,7 @@ def add_to_collection(collection, text, filename):
         input=text,
         model="text-embedding-3-small"
     )
-    st.write(response)
-    
+
     embedding = response['data'][0]['embedding']
     collection.add(
         documents=[text],
@@ -62,24 +61,19 @@ if uploaded_file is not None and "Lab4_vectorDB" in st.session_state:
     add_to_collection(st.session_state.Lab4_vectorDB, text, filename)
     st.success(f"Document '{filename}' added to the vector DB.")
 
-# Handle Question Based on Sidebar Option
-if "openai_client" in st.session_state:
-    question = topic
-    
-    if question:
-        query_response = st.session_state.openai_client.embeddings.create(
-            input=question,
-            model="text-embedding-3-small"
-        )
-        query_embedding = query_response['data'][0]['embedding']
-
-        results = st.session_state.Lab4_vectorDB.query(
+openai_client = st.session_state.openai_client
+query_response = openai_client.embeddings.create(
+    input=topic,
+    model="text-embedding-3-small"
+)
+query_embedding = query_response['data'][0]['embedding']
+results = st.session_state.Lab4_vectorDB.query(
             query_embeddings=[query_embedding],
             n_results=3
         )
-
-        st.write("Top 3 relevant documents:")
-        for i in range(len(results['documents'][0])):
-            doc = results['documents'][0][i]
-            doc_id = results['ids'][0][i]
-            st.write(f"The following file/syllabus might be helpful: {doc_id}")
+st.write("Top 3 relevant documents:")
+for i in range(len(results['documents'][0])):
+    doc = results['documents'][0][i]
+    doc_id = results['ids'][0][i]
+    st.write(f"The following file/syllabus might be helpful: {doc_id}")
+     
