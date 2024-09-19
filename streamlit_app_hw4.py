@@ -42,7 +42,7 @@ if "Lab4_vectorDB" not in st.session_state and "openai_client" in st.session_sta
 # Function to Add PDF Content to ChromaDB Collection
 def add_to_collection(collection, text, filename):
     openai_client = st.session_state.openai_client
-    response = openai_client.Embedding.create(
+    response = openai_client.embeddings.create(
         input=text,
         model="text-embedding-3-small"
     )
@@ -64,7 +64,7 @@ if "openai_client" in st.session_state:
     question = topic
     
     if question:
-        query_response = st.session_state.openai_client.Embedding.create(
+        query_response = st.session_state.openai_client.embeddings.create(
             input=question,
             model="text-embedding-3-small"
         )
