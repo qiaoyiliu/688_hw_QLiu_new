@@ -30,7 +30,8 @@ uploaded_file = st.file_uploader("Upload a document (.pdf)", type=("pdf"))
 
 # Initialize OpenAI Client if not already in session state
 if "openai_client" not in st.session_state:
-    openai_api_key = st.text_input("OpenAI API Key", type="password")
+    openai_api_key = st.secrets['OPENAI_API_KEY']
+    #openai_api_key = st.text_input("OpenAI API Key", type="password")
     if openai_api_key:
         st.session_state.openai_client = openai
         openai.api_key = openai_api_key
