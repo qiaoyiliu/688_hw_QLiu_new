@@ -89,7 +89,7 @@ if prompt := st.chat_input("What is up?"):
         relevant_documents = []
         for i in range(len(results['documents'][0])):
             doc_id = results['ids'][0][i]
-            relevant_text = results['documents'][0][i]  # Text of the document
+            relevant_text = results['documents'][0][i]  
             relevant_documents.append(relevant_text)
     else:
         relevant_documents = ["No relevant documents found."]
