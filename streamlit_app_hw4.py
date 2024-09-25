@@ -24,7 +24,7 @@ uploaded_files = st.file_uploader("Upload a document (.pdf)", type=("pdf"), acce
 
 
 if "openai_client" not in st.session_state:
-    openai_api_key = st.secrets['openai_key']
+    openai_api_key = st.secrets['OPENAI_API_KEY']
     #openai_api_key = st.text_input("OpenAI API Key", type="password")
     if openai_api_key:
         st.session_state.openai_client = openai
