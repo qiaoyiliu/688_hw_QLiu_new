@@ -31,7 +31,7 @@ if "openai_client" not in st.session_state:
         openai.api_key = openai_api_key
 
 
-if "Lab4_vectorDB" not in st.session_state and "openai_client" in st.session_state:
+if "HW4_vectorDB" not in st.session_state and "openai_client" in st.session_state:
     st.session_state.Lab4_vectorDB = chroma_client.get_or_create_collection(name="Lab4Collection")
 
 
@@ -50,19 +50,16 @@ def add_to_collection(collection, text, filename):
     )
 
 
-if uploaded_files is not None and "Lab4_vectorDB" in st.session_state:
+if uploaded_files is not None and "HW4_vectorDB" in st.session_state:
     for i in uploaded_files:
         filename, text = read_pdf(i)
-        add_to_collection(st.session_state.Lab4_vectorDB, text, filename)
+        add_to_collection(st.session_state.HW4_vectorDB, text, filename)
         st.success(f"Document '{filename}' added to the vector DB.")
 
 openai_client = st.session_state.openai_client
      
 
-system_message = '''
-You are an expert assistant for answering course-related questions.
-be clear if it you are using the knowledge gained from the context
-'''
+system_message = '''Answer course-related questions using the knowledge gained from the context'''
 
 if "messages" not in st.session_state:
     st.session_state["messages"] = \
@@ -82,7 +79,7 @@ if prompt := st.chat_input("What is up?"):
     query_embedding = query_response.data[0].embedding
 
     # Search for the top 3 relevant documents in the ChromaDB
-    results = st.session_state.Lab4_vectorDB.query(
+    results = st.session_state.HW4_vectorDB.query(
                 query_embeddings=[query_embedding],
                 n_results=3
             )
