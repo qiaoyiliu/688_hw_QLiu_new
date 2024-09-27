@@ -136,11 +136,11 @@ response_message = response.choices[0].message
 messages.append(response_message)  # Append model's response to messages
 
 # Check if the model identifies a tool call
-tool_calls = response_message.get('tool_calls')
-if tool_calls:
-    tool_call_id = tool_calls[0]['id']
-    tool_function_name = tool_calls[0]['function']['name']
-    tool_arguments = json.loads(tool_calls[0]['function']['arguments'])
+if hasattr(response_message, 'tool_calls') and response_message.tool_calls:
+    tool_calls = response_message.tool_calls
+    tool_call_id = tool_calls[0].id
+    tool_function_name = tool_calls[0].function.name
+    tool_arguments = json.loads(tool_calls[0].function.arguments)
 
     # Step #5: Call the ask_chromadb function if the tool call is valid
     if tool_function_name == "ask_chromadb":
