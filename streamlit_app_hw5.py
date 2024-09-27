@@ -14,7 +14,7 @@ if "openai_client" not in st.session_state:
         openai.api_key = openai_api_key
 
 # Streamlit app title
-st.title("Joy's HW4 Question Answering Chatbot")
+st.title("Joy's HW5 Question Answering Chatbot")
 
 # Function to read PDFs and extract content
 def read_pdf(file):
