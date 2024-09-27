@@ -1,8 +1,11 @@
 import streamlit as st
 import openai
+import os
 import pdfplumber
+__import__('pysqlite3')
+import sys
+sys.modules['sqlite3'] = sys.modules.pop('pysqlite3')
 import chromadb
-import json
 
 # Initialize ChromaDB client
 chroma_client = chromadb.PersistentClient(path="~/embeddings")
