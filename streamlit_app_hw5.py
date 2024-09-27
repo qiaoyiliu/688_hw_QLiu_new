@@ -146,13 +146,13 @@ if "pdfs_uploaded" in st.session_state:
         messages.append(response_message)
 
         # Step 2: Determine if the response from the model includes a tool call.
-        tool_calls = response_message.get('tool_calls', [])
+        tool_calls = getattr(response_message, 'tool_calls', None)
 
         if tool_calls:
             # The model returns the name of the tool/function to call and the argument(s)
-            tool_call_id = tool_calls[0].get('id')
-            tool_function_name = tool_calls[0].get('function').get('name')
-            tool_arguments = json.loads(tool_calls[0].get('function').get('arguments'))
+            tool_call_id = tool_calls[0].id
+            tool_function_name = tool_calls[0].function.name
+            tool_arguments = json.loads(tool_calls[0].function.arguments)
 
             # Check if the tool call is for `ask_chromadb`
             if tool_function_name == 'ask_chromadb':
