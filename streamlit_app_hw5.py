@@ -142,14 +142,12 @@ if "pdfs_uploaded" in st.session_state:
                 
                 results = ask_chromadb(query_embedding, n_results)
 
-                st.write(f"Query results: {results}")
-
-                #messages.append({
-                #    "role": "tool",
-                #    "tool_call_id": tool_call_id,
-                #    "name": tool_function_name,
-                #    "content": results
-                #})
+                messages.append({
+                    "role": "tool",
+                    "tool_call_id": tool_call_id,
+                    "name": tool_function_name,
+                    "content": results
+                })
 
                 model_response_with_function_call = st.session_state.openai_client.chat.completions.create(
                     model="gpt-4o-mini",
