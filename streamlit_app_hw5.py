@@ -146,7 +146,7 @@ if "pdfs_uploaded" in st.session_state:
         messages.append(response_message)
 
         # Step 2: Determine if the response from the model includes a tool call.
-        tool_calls = getattr(response_message, 'tool_calls', None)
+        tool_calls = response_message.tool_calls
 
         if tool_calls:
             # The model returns the name of the tool/function to call and the argument(s)
@@ -158,7 +158,7 @@ if "pdfs_uploaded" in st.session_state:
             if tool_function_name == 'ask_chromadb':
                 # Extract the query embedding from the tool arguments
                 query_embedding = tool_arguments['query_embedding']
-                n_results = tool_arguments.get('n_results', 3)  # Default to 3 results if not specified
+                n_results = tool_arguments.get('n_results', 1) 
                 
                 # Step 3: Call the `ask_chromadb` function and retrieve results
                 results = ask_chromadb(query_embedding, n_results)
@@ -168,7 +168,7 @@ if "pdfs_uploaded" in st.session_state:
                     "role": "tool",
                     "tool_call_id": tool_call_id,
                     "name": tool_function_name,
-                    "content": json.dumps(results)
+                    "content": results
                 })
 
                 # Step 4: Invoke the chat completions API with the function response appended to the messages list
@@ -179,13 +179,7 @@ if "pdfs_uploaded" in st.session_state:
 
                 # Display the response from the model after it sees the tool result
                 st.write(model_response_with_function_call.choices[0].message.content)
-
-            else:
-                # If the tool is not recognized, handle the error
-                st.error(f"Error: function {tool_function_name} does not exist")
         else:
             # If no tool is identified, return the regular response from the model
             st.write(response_message.content)
 
-else:
-    st.warning("Please upload and process PDFs first before asking questions.")
