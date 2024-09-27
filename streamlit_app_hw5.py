@@ -1,8 +1,10 @@
 import streamlit as st
 import requests
+import json
 from openai import OpenAI
 
 st.title("Joy's HW5 Using functions to answer course-related questions")
+
 def relevant_course_info(query: str) -> str:
     """
     Function to query ChromaDB using a query embedding and return relevant course content.
