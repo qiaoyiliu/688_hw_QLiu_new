@@ -12,7 +12,6 @@ st.title("Joy's HW5 Chatbot")
 
 chroma_client = chromadb.PersistentClient(path="~/embeddings")
 
-# Initialize OpenAI client in session state
 if "openai_client" not in st.session_state:
     openai_api_key = st.secrets['OPENAI_API_KEY']
     if openai_api_key:
@@ -82,7 +81,6 @@ if "pdfs_uploaded" in st.session_state:
                     query_embeddings=[query_embedding],  
                     n_results=n_results                  
                 )
-                print("ChromaDB query results:", results)
                 return results
             
             except Exception as e:
