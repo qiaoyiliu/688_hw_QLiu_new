@@ -30,11 +30,10 @@ def read_pdf(file):
             pdf_content += page.extract_text()
     return file_name, pdf_content
 
-
 uploaded_files = st.file_uploader("Upload a document (.pdf)", type=("pdf"), accept_multiple_files=True)
 
-if "HW4_vectorDB" not in st.session_state and "openai_client" in st.session_state:
-    st.session_state.HW4_vectorDB = chroma_client.get_or_create_collection(name="Lab4Collection")
+if "HW5_vectorDB" not in st.session_state and "openai_client" in st.session_state:
+    st.session_state.HW5_vectorDB = chroma_client.get_or_create_collection(name="HW5Collection")
 
 def add_to_collection(collection, text, filename):
     """Add document content to ChromaDB collection."""
@@ -51,10 +50,10 @@ def add_to_collection(collection, text, filename):
     )
 
 
-if uploaded_files is not None and "HW4_vectorDB" in st.session_state:
+if uploaded_files is not None and "HW5_vectorDB" in st.session_state:
     for file in uploaded_files:
         filename, text = read_pdf(file)
-        add_to_collection(st.session_state.HW4_vectorDB, text, filename)
+        add_to_collection(st.session_state.HW5_vectorDB, text, filename)
         st.success(f"Document '{filename}' added to the vector DB.")
 
 
@@ -70,7 +69,7 @@ tools = [
                     "query_embedding": {
                         "type": "array",
                         "items": {
-                            "type": "number"  # This specifies that the array items are numbers (the embedding values)
+                            "type": "number"  
                         },
                         "description": "Embedding vector of the user query."
                     },
@@ -90,7 +89,7 @@ tools = [
 def ask_chromadb(query_embedding, n_results=3):
     """Function to query ChromaDB based on embedding."""
     try:
-        results = st.session_state.HW4_vectorDB.query(
+        results = st.session_state.HW5_vectorDB.query(
             query_embeddings=[query_embedding],
             n_results=n_results
         )
@@ -107,9 +106,8 @@ messages = [{
 
 openai_client = st.session_state.openai_client
 query_response = openai_client.embeddings.create(
-    input=messages[-1]['content'],
-    model="text-embedding-3-small"
-)
+    input=st.chat_input("What is up?"),
+    model="text-embedding-3-small")
 query_embedding = query_response.data[0].embedding
 
 response = openai_client.chat.completions.create(
