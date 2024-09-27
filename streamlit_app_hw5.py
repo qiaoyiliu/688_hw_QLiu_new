@@ -169,4 +169,4 @@ if hasattr(response_message, 'tool_calls') and response_message.tool_calls:
         print(f"Error: Function {tool_function_name} does not exist")
 else:
     # If no tool call was made, print the response directly
-    print(response_message['content'])
+    print(response_message.content)
