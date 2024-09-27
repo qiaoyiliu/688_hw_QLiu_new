@@ -60,18 +60,6 @@ if uploaded_files:
             st.success(f"Document '{filename}' added to the vector DB.")
         st.session_state.pdfs_uploaded = True  # Mark that PDFs are uploaded and processed
 
-# Function to query ChromaDB
-def ask_chromadb(query_embedding, n_results=3):
-    """Function to query ChromaDB based on embedding."""
-    try:
-        results = st.session_state.HW5_vectorDB.query(
-            query_embeddings=[query_embedding],
-            n_results=n_results
-        )
-        return results
-    except Exception as e:
-        return f"Query failed with error: {e}"
-
 # Step 3: Ask Questions
 if "pdfs_uploaded" in st.session_state:
     st.subheader("Step 2: Ask Questions")
@@ -87,19 +75,81 @@ if "pdfs_uploaded" in st.session_state:
             )
             query_embedding = query_response.data[0].embedding
             
-            # Query ChromaDB with the user's question embedding
-            results = ask_chromadb(query_embedding)
+            # Prepare messages and tools
+            messages = [{
+                "role": "user", 
+                "content": "What are the top 3 relevant documents for my question?"
+            }]
+            
+            tools = [
+                {
+                    "type": "function",
+                    "function": {
+                        "name": "ask_chromadb",
+                        "description": "Use this function to query the document database and retrieve relevant documents based on the user question.",
+                        "parameters": {
+                            "type": "object",
+                            "properties": {
+                                "query_embedding": {
+                                    "type": "array",
+                                    "items": {
+                                        "type": "number"  
+                                    },
+                                    "description": "Embedding vector of the user query."
+                                },
+                                "n_results": {
+                                    "type": "integer",
+                                    "description": "Number of top results to retrieve from the database.",
+                                    "default": 3
+                                }
+                            },
+                            "required": ["query_embedding"]
+                        }
+                    }
+                }
+            ]
+            
+            # Send to GPT model
+            response = st.session_state.openai_client.chat.completions.create(
+                model="gpt-4o-mini", 
+                messages=messages, 
+                tools=tools, 
+                tool_choice="auto"  
+            )
 
-            if isinstance(results, str):
-                st.error(results)  # Show error if query failed
+            response_message = response.choices[0].message
+            messages.append(response_message)
+
+            # Handle tool call
+            if hasattr(response_message, 'tool_calls') and response_message.tool_calls:
+                tool_calls = response_message.tool_calls
+                tool_call_id = tool_calls[0].id
+                tool_function_name = tool_calls[0].function.name
+                tool_arguments = json.loads(tool_calls[0].function.arguments)
+                
+                if tool_function_name == "ask_chromadb":
+                    query_embedding = tool_arguments['query_embedding']
+                    n_results = tool_arguments.get('n_results', 3)
+                    results = st.session_state.HW5_vectorDB.query(
+                        query_embeddings=[query_embedding],
+                        n_results=n_results
+                    )
+                    
+                    # Append tool response to messages and display result
+                    messages.append({
+                        "role": "tool",
+                        "tool_call_id": tool_call_id,
+                        "name": tool_function_name,
+                        "content": json.dumps(results)
+                    })
+                    
+                    st.write(f"Top 3 relevant documents: {json.dumps(results)}")
+            
             else:
-                # Process and display the results
-                top_docs = [f"Document ID: {res['id']} - Content: {res['document']}" for res in results['documents']]
-                st.write("Top 3 relevant documents:")
-                for doc in top_docs:
-                    st.write(doc)
-        
+                st.write(response_message.content)
+
         except openai.error.InvalidRequestError as e:
             st.error(f"Failed to process the question: {e}")
+
 else:
     st.warning("Please upload and process PDFs first before asking questions.")
