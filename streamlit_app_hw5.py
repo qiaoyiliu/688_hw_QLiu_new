@@ -74,12 +74,7 @@ if "pdfs_uploaded" in st.session_state:
                 model="text-embedding-3-small"
             )
             query_embedding = query_response.data[0].embedding
-            
-            # Prepare messages and tools
-            messages = [{
-                "role": "user", 
-                "content": "What are the top 3 relevant documents for my question?"
-            }]
+        
             
             tools = [
                 {
@@ -108,7 +103,36 @@ if "pdfs_uploaded" in st.session_state:
                     }
                 }
             ]
-            
+
+            def ask_chromadb(query_embedding, n_results=3):
+                """
+                Function to query ChromaDB using the provided query embedding.
+                Args:
+                    query_embedding (list): A list representing the embedding vector for the user's query.
+                    n_results (int): The number of top results to retrieve from the database. Default is 3.
+                    
+                Returns:
+                    dict: The query results from ChromaDB.
+                """
+                try:
+                    # Execute the query against the ChromaDB collection
+                    results = st.session_state.HW5_vectorDB.query(
+                        query_embeddings=[query_embedding],  # Pass the query embedding
+                        n_results=n_results                 # Number of top results to retrieve
+                    )
+
+                    # Parse and return the results
+                    return results
+                
+                except Exception as e:
+                    # Handle any errors that occur during the query
+                    return f"Query failed with error: {e}"
+
+            messages = [{
+                "role": "user", 
+                "content": "Who teaches text mining?"
+            }]
+
             # Send to GPT model
             response = st.session_state.openai_client.chat.completions.create(
                 model="gpt-4o-mini", 
@@ -119,37 +143,54 @@ if "pdfs_uploaded" in st.session_state:
 
             response_message = response.choices[0].message
             messages.append(response_message)
+            print(response_message)
 
-            # Handle tool call
-            if hasattr(response_message, 'tool_calls') and response_message.tool_calls:
-                tool_calls = response_message.tool_calls
+            # Step 2: Determine if the response from the model includes a tool call.
+            tool_calls = response_message.tool_calls
+
+            if tool_calls:
+                # The model returns the name of the tool/function to call and the argument(s)
                 tool_call_id = tool_calls[0].id
                 tool_function_name = tool_calls[0].function.name
                 tool_arguments = json.loads(tool_calls[0].function.arguments)
-                
-                if tool_function_name == "ask_chromadb":
+
+                # Check if the tool call is for `ask_chromadb`
+                if tool_function_name == 'ask_chromadb':
+                    # Extract the query embedding from the tool arguments
                     query_embedding = tool_arguments['query_embedding']
-                    n_results = tool_arguments.get('n_results', 3)
-                    results = st.session_state.HW5_vectorDB.query(
-                        query_embeddings=[query_embedding],
-                        n_results=n_results
-                    )
+                    n_results = tool_arguments.get('n_results', 3)  # Default to 3 results if not specified
                     
-                    # Append tool response to messages and display result
+                    # Step 3: Call the `ask_chromadb` function and retrieve results
+                    results = ask_chromadb(query_embedding, n_results)
+
+                    # Append the results to the messages list
                     messages.append({
                         "role": "tool",
                         "tool_call_id": tool_call_id,
                         "name": tool_function_name,
                         "content": json.dumps(results)
                     })
-                    
-                    st.write(f"Top 3 relevant documents: {json.dumps(results)}")
-            
+
+                    # Step 4: Invoke the chat completions API with the function response appended to the messages list
+                    # This allows the model to see the tool response and continue the conversation
+                    model_response_with_function_call = st.session_state.openai_client.chat.completions.create(
+                        model="gpt-4o-mini",
+                        messages=messages,
+                    )
+
+                    # Display the response from the model after it sees the tool result
+                    print(model_response_with_function_call.choices[0].message.content)
+                    st.write(model_response_with_function_call.choices[0].message.content)
+
+                else:
+                    # If the tool is not recognized, handle the error
+                    print(f"Error: function {tool_function_name} does not exist")
+                    st.error(f"Error: function {tool_function_name} does not exist")
             else:
+                # If no tool is identified, return the regular response from the model
+                print(response_message.content)
                 st.write(response_message.content)
 
-        except openai.error.InvalidRequestError as e:
-            st.error(f"Failed to process the question: {e}")
 
 else:
     st.warning("Please upload and process PDFs first before asking questions.")
