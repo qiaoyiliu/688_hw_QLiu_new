@@ -104,18 +104,20 @@ messages = [{
     "content": "What are the top 3 relevant documents for my question?"
 }]
 
-openai_client = st.session_state.openai_client
-query_response = openai_client.embeddings.create(
-    input=st.chat_input("What is up?"),
-    model="text-embedding-3-small")
-query_embedding = query_response.data[0].embedding
+user_question = st.chat_input("What is up?")
+if user_question:
+    query_response = st.session_state.openai_client.embeddings.create(
+        input=user_question,
+        model="text-embedding-3-small")
+    
+    query_embedding = query_response.data[0].embedding
 
-response = openai_client.chat.completions.create(
-    model="gpt-4o-mini", 
-    messages=messages, 
-    tools=tools, 
-    tool_choice="auto"  
-)
+    response = st.session_state.openai_client.chat.completions.create(
+        model="gpt-4o-mini", 
+        messages=messages, 
+        tools=tools, 
+        tool_choice="auto"  
+    )
 
 
 response_message = response.choices[0].message
