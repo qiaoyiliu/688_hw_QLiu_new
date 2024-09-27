@@ -74,37 +74,8 @@ if "pdfs_uploaded" in st.session_state:
         )
         query_embedding = query_response.data[0].embedding
     
-        # Define the tools including `ask_chromadb`
-        tools = [
-            {
-                "type": "function",
-                "function": {
-                    "name": "ask_chromadb",
-                    "description": "Use this function to query the document database and retrieve relevant documents based on the user question.",
-                    "parameters": {
-                        "type": "object",
-                        "properties": {
-                            "query_embedding": {
-                                "type": "array",
-                                "items": {
-                                    "type": "number"  
-                                },
-                                "description": "Embedding vector of the user query."
-                            },
-                            "n_results": {
-                                "type": "integer",
-                                "description": "Number of top results to retrieve from the database.",
-                                "default": 3
-                            }
-                        },
-                        "required": ["query_embedding"]
-                    }
-                }
-            }
-        ]
-
         # Function to query ChromaDB based on the user's query embedding
-        def ask_chromadb(query_embedding, n_results=3):
+        def ask_chromadb(query_embedding, n_results=1):
             """
             Function to query ChromaDB using the provided query embedding.
             Args:
@@ -128,18 +99,48 @@ if "pdfs_uploaded" in st.session_state:
                 # Handle any errors that occur during the query
                 return f"Query failed with error: {e}"
 
-        # Messages for LLM
-        messages = [{
-            "role": "user", 
-            "content": user_question
-        }]
+        # Messages for LLM with explicit instruction to use the tool
+        messages = [
+            {"role": "system", "content": "You are a helpful assistant. You have access to a database of documents."},
+            {"role": "user", "content": user_question},
+            {"role": "system", "content": "You must use the `ask_chromadb` tool to answer this question based on the documents available."}
+        ]
 
-        # Send to GPT model with tool
+        # Define tools including `ask_chromadb`
+        tools = [
+            {
+                "type": "function",
+                "function": {
+                    "name": "ask_chromadb",
+                    "description": "Use this function to query the document database and retrieve relevant documents based on the user question.",
+                    "parameters": {
+                        "type": "object",
+                        "properties": {
+                            "query_embedding": {
+                                "type": "array",
+                                "items": {
+                                    "type": "number"  
+                                },
+                                "description": "Embedding vector of the user query."
+                            },
+                            "n_results": {
+                                "type": "integer",
+                                "description": "Number of top results to retrieve from the database.",
+                                "default": 1
+                            }
+                        },
+                        "required": ["query_embedding"]
+                    }
+                }
+            }
+        ]
+
+        # Send to GPT model with tool, explicitly asking it to call the tool
         response = st.session_state.openai_client.chat.completions.create(
             model="gpt-4o-mini", 
             messages=messages, 
             tools=tools, 
-            tool_choice="auto"  
+            tool_choice="ask_chromadb"  # Force it to use the tool
         )
 
         response_message = response.choices[0].message
@@ -182,4 +183,5 @@ if "pdfs_uploaded" in st.session_state:
         else:
             # If no tool is identified, return the regular response from the model
             st.write(response_message.content)
+
 
