@@ -6,6 +6,7 @@ __import__('pysqlite3')
 import sys
 sys.modules['sqlite3'] = sys.modules.pop('pysqlite3')
 import chromadb
+import json
 
 # Initialize ChromaDB client
 chroma_client = chromadb.PersistentClient(path="~/embeddings")
@@ -77,7 +78,10 @@ tools = [
                 "properties": {
                     "query_embedding": {
                         "type": "array",
-                        "description": "Embedding vector of the user query.",
+                        "items": {
+                            "type": "number"  # This specifies that the array items are numbers (the embedding values)
+                        },
+                        "description": "Embedding vector of the user query."
                     },
                     "n_results": {
                         "type": "integer",
