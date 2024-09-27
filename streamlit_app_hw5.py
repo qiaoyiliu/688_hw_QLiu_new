@@ -155,7 +155,11 @@ if "pdfs_uploaded" in st.session_state:
                 n_results = tool_arguments.get('n_results', 1)
                 
                 results = ask_chromadb(st.session_state.HW5_vectorDB, query_embedding, n_results)
-
+                if results and "documents" in results:
+                    documents = results["documents"]
+                    for doc in documents:
+                        messages.append({"role": "system", "content": f"Relevant document: {doc}"})
+                
                 messages.append({
                     "role": "tool",
                     "tool_call_id": tool_call_id,
