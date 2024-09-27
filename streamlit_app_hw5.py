@@ -75,7 +75,7 @@ if "pdfs_uploaded" in st.session_state:
             )
             query_embedding = query_response.data[0].embedding
         
-            
+            # Define the tools including `ask_chromadb`
             tools = [
                 {
                     "type": "function",
@@ -104,6 +104,7 @@ if "pdfs_uploaded" in st.session_state:
                 }
             ]
 
+            # Function to query ChromaDB based on the user's query embedding
             def ask_chromadb(query_embedding, n_results=3):
                 """
                 Function to query ChromaDB using the provided query embedding.
@@ -121,19 +122,20 @@ if "pdfs_uploaded" in st.session_state:
                         n_results=n_results                 # Number of top results to retrieve
                     )
 
-                    # Parse and return the results
+                    # Return the results
                     return results
                 
                 except Exception as e:
                     # Handle any errors that occur during the query
                     return f"Query failed with error: {e}"
 
+            # Messages for LLM
             messages = [{
                 "role": "user", 
-                "content": "Who teaches text mining?"
+                "content": user_question
             }]
 
-            # Send to GPT model
+            # Send to GPT model with tool
             response = st.session_state.openai_client.chat.completions.create(
                 model="gpt-4o-mini", 
                 messages=messages, 
@@ -143,16 +145,15 @@ if "pdfs_uploaded" in st.session_state:
 
             response_message = response.choices[0].message
             messages.append(response_message)
-            print(response_message)
 
             # Step 2: Determine if the response from the model includes a tool call.
-            tool_calls = response_message.tool_calls
+            tool_calls = response_message.get('tool_calls', [])
 
             if tool_calls:
                 # The model returns the name of the tool/function to call and the argument(s)
-                tool_call_id = tool_calls[0].id
-                tool_function_name = tool_calls[0].function.name
-                tool_arguments = json.loads(tool_calls[0].function.arguments)
+                tool_call_id = tool_calls[0].get('id')
+                tool_function_name = tool_calls[0].get('function').get('name')
+                tool_arguments = json.loads(tool_calls[0].get('function').get('arguments'))
 
                 # Check if the tool call is for `ask_chromadb`
                 if tool_function_name == 'ask_chromadb':
@@ -172,25 +173,23 @@ if "pdfs_uploaded" in st.session_state:
                     })
 
                     # Step 4: Invoke the chat completions API with the function response appended to the messages list
-                    # This allows the model to see the tool response and continue the conversation
                     model_response_with_function_call = st.session_state.openai_client.chat.completions.create(
                         model="gpt-4o-mini",
                         messages=messages,
                     )
 
                     # Display the response from the model after it sees the tool result
-                    print(model_response_with_function_call.choices[0].message.content)
                     st.write(model_response_with_function_call.choices[0].message.content)
 
                 else:
                     # If the tool is not recognized, handle the error
-                    print(f"Error: function {tool_function_name} does not exist")
                     st.error(f"Error: function {tool_function_name} does not exist")
             else:
                 # If no tool is identified, return the regular response from the model
-                print(response_message.content)
                 st.write(response_message.content)
 
+        except openai.error.InvalidRequestError as e:
+            st.error(f"Failed to process the question: {e}")
 
 else:
     st.warning("Please upload and process PDFs first before asking questions.")
