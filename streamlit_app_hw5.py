@@ -91,7 +91,9 @@ if "pdfs_uploaded" in st.session_state:
                     query_embeddings=[query_embedding],  
                     n_results=n_results                  
                 )
+                print("ChromaDB query results:", results)
                 return results
+            
             except Exception as e:
                 return f"Query failed with error: {e}"
 
