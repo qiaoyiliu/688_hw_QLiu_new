@@ -10,7 +10,6 @@ import json
 
 st.title("Joy's HW5 Chatbot")
 
-# Initialize ChromaDB persistent client
 chroma_client = chromadb.PersistentClient(path="~/embeddings")
 
 # Initialize OpenAI client in session state
@@ -20,15 +19,12 @@ if "openai_client" not in st.session_state:
         st.session_state.openai_client = openai
         openai.api_key = openai_api_key
 
-# Step 1: Upload PDFs
 st.subheader("Step 1: Upload PDFs")
 uploaded_files = st.file_uploader("Upload a document (.pdf)", type=("pdf"), accept_multiple_files=True)
 
-# Create or get the ChromaDB collection
 if "HW5_vectorDB" not in st.session_state and "openai_client" in st.session_state:
     st.session_state.HW5_vectorDB = chroma_client.get_or_create_collection(name="HW5Collection")
 
-# Function to read PDFs using pdfplumber
 def read_pdf(file):
     file_name = file.name
     pdf_content = ""
@@ -37,7 +33,6 @@ def read_pdf(file):
             pdf_content += page.extract_text()
     return file_name, pdf_content
 
-# Function to add document text and embedding to ChromaDB collection
 def add_to_collection(collection, text, filename):
     openai_client = st.session_state.openai_client
     response = openai_client.embeddings.create(
@@ -51,7 +46,6 @@ def add_to_collection(collection, text, filename):
         embeddings=[embedding]
     )
 
-# Process uploaded PDFs and add to ChromaDB collection
 if uploaded_files:
     if st.button("Finish Upload and Process PDFs"):
         for file in uploaded_files:
@@ -60,21 +54,18 @@ if uploaded_files:
             st.success(f"Document '{filename}' added to the vector DB.")
         st.session_state.pdfs_uploaded = True  
 
-# Step 2: Ask Questions
 if "pdfs_uploaded" in st.session_state:
     st.subheader("Step 2: Ask Questions")
     
     user_question = st.text_input("Enter your question:")
 
     if st.button("Submit Question") and user_question:
-        # Generate embedding for the user's question
         query_response = st.session_state.openai_client.embeddings.create(
             input=user_question,
             model="text-embedding-3-small"
         )
         query_embedding = query_response.data[0].embedding
         
-        # Function to query ChromaDB
         def ask_chromadb(collection, query_embedding, n_results=1):
             """
             Function to query ChromaDB using the provided query embedding.
@@ -97,7 +88,6 @@ if "pdfs_uploaded" in st.session_state:
             except Exception as e:
                 return f"Query failed with error: {e}"
 
-        # Simulated tools description for OpenAI model
         tools = [
             {
                 "type": "function",
@@ -126,13 +116,11 @@ if "pdfs_uploaded" in st.session_state:
             }
         ]
         
-        # Messages for OpenAI completion
         messages = [
             {"role": "user", "content": user_question},
             {"role": "system", "content": "You must use the `ask_chromadb` tool to answer this question based on the documents available."}
         ]
 
-        # OpenAI completion with tool usage
         response = st.session_state.openai_client.chat.completions.create(
             model="gpt-4o-mini", 
             messages=messages, 
@@ -155,11 +143,7 @@ if "pdfs_uploaded" in st.session_state:
                 n_results = tool_arguments.get('n_results', 1)
                 
                 results = ask_chromadb(st.session_state.HW5_vectorDB, query_embedding, n_results)
-                if results and "documents" in results:
-                    documents = results["documents"]
-                    for doc in documents:
-                        messages.append({"role": "system", "content": f"Relevant document: {doc}"})
-                
+
                 messages.append({
                     "role": "tool",
                     "tool_call_id": tool_call_id,
