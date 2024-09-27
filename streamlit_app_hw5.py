@@ -132,9 +132,9 @@ if "pdfs_uploaded" in st.session_state:
         tool_calls = response_message.tool_calls
 
         if tool_calls:
-            tool_call_id = tool_calls[0].id
-            tool_function_name = tool_calls[0].function.name
-            tool_arguments = json.loads(tool_calls[0].function.arguments)
+            tool_call_id = tool_calls[0]['id']
+            tool_function_name = tool_calls[0]['function']['name']
+            tool_arguments = json.loads(tool_calls[0]['function']['arguments'])
 
             if tool_function_name == 'ask_chromadb':
                 query_embedding = tool_arguments['query_embedding']
