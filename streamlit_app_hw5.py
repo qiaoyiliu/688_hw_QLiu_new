@@ -1,16 +1,11 @@
-import openai
-import chromadb
 import streamlit as st
+import openai
 import pdfplumber
-__import__('pysqlite3')
-import sys
-sys.modules['sqlite3'] = sys.modules.pop('pysqlite3')
+import chromadb
+import json
 
-st.title("Joy's HW5 Using functions/tools for course-related chatbot")
-
-# Initialize ChromaDB client and collection
+# Initialize ChromaDB client
 chroma_client = chromadb.PersistentClient(path="~/embeddings")
-
 if "openai_client" not in st.session_state:
     openai_api_key = st.secrets['OPENAI_API_KEY']
     #openai_api_key = st.text_input("OpenAI API Key", type="password")
@@ -18,124 +13,153 @@ if "openai_client" not in st.session_state:
         st.session_state.openai_client = openai
         openai.api_key = openai_api_key
 
-# Function to read and extract text from PDF
+# Streamlit app title
+st.title("Joy's HW4 Question Answering Chatbot")
+
+# Function to read PDFs and extract content
 def read_pdf(file):
-    file_name = file.name  
+    """Extract text content from the uploaded PDF."""
+    file_name = file.name
     pdf_content = ""
     with pdfplumber.open(file) as pdf:
         for page in pdf.pages:
             pdf_content += page.extract_text()
     return file_name, pdf_content
 
-# Upload PDF files
+# File uploader to upload multiple PDFs
 uploaded_files = st.file_uploader("Upload a document (.pdf)", type=("pdf"), accept_multiple_files=True)
 
-# Initialize the vector collection if not done yet
-if "HW5_vectorDB" not in st.session_state:
-    st.session_state.HW5_vectorDB = chroma_client.get_or_create_collection(name="Lab4Collection")
+# Set up OpenAI client with API key
+if "openai_client" not in st.session_state:
+    openai_api_key = st.secrets['OPENAI_API_KEY']
+    if openai_api_key:
+        st.session_state.openai_client = openai
+        openai.api_key = openai_api_key
 
-# Function to add PDF content to the vector database
+# Set up ChromaDB collection to store document embeddings
+if "HW4_vectorDB" not in st.session_state and "openai_client" in st.session_state:
+    st.session_state.HW4_vectorDB = chroma_client.get_or_create_collection(name="Lab4Collection")
+
+# Function to add documents and their embeddings to ChromaDB
 def add_to_collection(collection, text, filename):
+    """Add document content to ChromaDB collection."""
     openai_client = st.session_state.openai_client
     response = openai_client.embeddings.create(
         input=text,
         model="text-embedding-3-small"
     )
-    embedding = response['data'][0]['embedding']
+    embedding = response.data[0].embedding
     collection.add(
         documents=[text],
         ids=[filename],
         embeddings=[embedding]
     )
 
-# Add uploaded PDFs to the collection
-if uploaded_files and "HW5_vectorDB" in st.session_state:
+# Add uploaded PDFs to ChromaDB
+if uploaded_files is not None and "HW4_vectorDB" in st.session_state:
     for file in uploaded_files:
         filename, text = read_pdf(file)
-        add_to_collection(st.session_state.HW5_vectorDB, text, filename)
+        add_to_collection(st.session_state.HW4_vectorDB, text, filename)
         st.success(f"Document '{filename}' added to the vector DB.")
 
-# Define the initial messages and system prompt
-system_message = '''Answer course-related questions using the knowledge gained from the context.'''
-if "messages" not in st.session_state:
-    st.session_state["messages"] = [{"role": "system", "content": system_message},
-                                    {"role": "assistant", "content": "How can I help you?"}]
+# Tool for ChromaDB querying
+tools = [
+    {
+        "type": "function",
+        "function": {
+            "name": "ask_chromadb",
+            "description": "Use this function to query the document database and retrieve relevant documents based on the user question.",
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "query_embedding": {
+                        "type": "array",
+                        "description": "Embedding vector of the user query.",
+                    },
+                    "n_results": {
+                        "type": "integer",
+                        "description": "Number of top results to retrieve from the database.",
+                        "default": 3
+                    }
+                },
+                "required": ["query_embedding"]
+            }
+        }
+    }
+]
 
-# Display chat history
-for msg in st.session_state.messages:
-    if msg["role"] != "system":    
-        chat_msg = st.chat_message(msg["role"])
-        chat_msg.write(msg["content"])
-
-# Assume a message from the model includes a tool call
-openai_client = st.session_state.openai_client
-response_message = openai_client.chat.completions.create(
-    model="gpt-4o-mini",
-    messages=st.session_state.messages
-)
-
-# Step 2: Check if the model response includes a tool call
-tool_calls = response_message.choices[0].tool_calls
-if tool_calls:
-    # Extract the function name and input needed for the query (raw query text instead of JSON)
-    tool_call_id = tool_calls[0].id
-    tool_function_name = tool_calls[0].function.name
-    tool_query_string = tool_calls[0].function.arguments['query']  # Just use the raw query string
-
-    # Step 3: Execute the appropriate function based on the tool call
-    if tool_function_name == 'ask_chromadb':
-        query_embedding = openai.embeddings.create(
-            input=tool_query_string,
-            model="text-embedding-3-small"
-        )['data'][0]['embedding']
-
+# Define the ask_chromadb function that will be called as a tool
+def ask_chromadb(query_embedding, n_results=3):
+    """Function to query ChromaDB based on embedding."""
+    try:
         results = st.session_state.HW4_vectorDB.query(
             query_embeddings=[query_embedding],
-            n_results=3
+            n_results=n_results
         )
+        return json.dumps(results)
+    except Exception as e:
+        return f"Query failed with error: {e}"
 
-        relevant_documents = []
-        if results and len(results['documents'][0]) > 0:
-            for i in range(len(results['documents'][0])):
-                relevant_text = results['documents'][0][i]
-                relevant_documents.append(relevant_text)
-        else:
-            relevant_documents = ["No relevant documents found."]
-        
-        context = "\n\n".join(relevant_documents)
+# Example conversation flow without prompt usage, entirely using the tool
 
-        # Append results as a response to the tool call
-        st.session_state.messages.append({
+# Step #1: User provides an input
+messages = [{
+    "role": "user", 
+    "content": "What are the top 3 relevant documents for my question?"
+}]
+
+# Step #2: Convert the user query into an embedding
+openai_client = st.session_state.openai_client
+query_response = openai_client.embeddings.create(
+    input=messages[-1]['content'],
+    model="text-embedding-3-small"
+)
+query_embedding = query_response.data[0].embedding
+
+# Step #3: Invoke the OpenAI completion API with tools, no direct prompts, and let the model decide if a tool call is needed
+response = openai_client.chat.completions.create(
+    model="gpt-4o-mini", 
+    messages=messages, 
+    tools=tools, 
+    tool_choice="auto"  # Use the tool automatically based on the user's input
+)
+
+# Step #4: Handle the response and tool call
+response_message = response.choices[0].message
+messages.append(response_message)  # Append model's response to messages
+
+# Check if the model identifies a tool call
+tool_calls = response_message.get('tool_calls')
+if tool_calls:
+    tool_call_id = tool_calls[0]['id']
+    tool_function_name = tool_calls[0]['function']['name']
+    tool_arguments = json.loads(tool_calls[0]['function']['arguments'])
+
+    # Step #5: Call the ask_chromadb function if the tool call is valid
+    if tool_function_name == "ask_chromadb":
+        query_embedding = tool_arguments['query_embedding']
+        n_results = tool_arguments.get('n_results', 3)
+        results = ask_chromadb(query_embedding, n_results)
+
+        # Append the tool result to messages
+        messages.append({
             "role": "tool",
             "tool_call_id": tool_call_id,
             "name": tool_function_name,
-            "content": context
+            "content": results
         })
 
-        # Step 4: Invoke the chat completions API with the function response appended to the messages list
-        openai_client = st.session_state.openai_client
-        final_response = openai_client.chat.completions.create(
+        # Step #6: Re-invoke the OpenAI completion API with the tool results appended to messages
+        model_response_with_tool_call = openai_client.chat.completions.create(
             model="gpt-4o-mini",
-            messages=st.session_state.messages,
+            messages=messages,
         )
 
-        # Output the final response
-        st.session_state.messages.append({
-            "role": "assistant",
-            "content": final_response['choices'][0]['message']['content']
-        })
-
-        with st.chat_message("assistant"):
-            st.write(final_response['choices'][0]['message']['content'])
+        # Print the final response after tool execution
+        print(model_response_with_tool_call.choices[0].message.content)
 
     else:
-        print(f"Error: function {tool_function_name} does not exist")
+        print(f"Error: Function {tool_function_name} does not exist")
 else:
-    # No tool call; simply return the response
-    st.session_state.messages.append({
-        "role": "assistant",
-        "content": response_message.choices[0].message['content']
-    })
-
-    with st.chat_message("assistant"):
-        st.write(response_message.choices[0].message['content'])
+    # If no tool call was made, print the response directly
+    print(response_message['content'])
