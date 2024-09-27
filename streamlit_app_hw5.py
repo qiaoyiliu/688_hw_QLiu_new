@@ -140,7 +140,7 @@ if "pdfs_uploaded" in st.session_state:
             model="gpt-4o-mini", 
             messages=messages, 
             tools=tools, 
-            tool_choice="ask_chromadb"  # Force it to use the tool
+            tool_choice="required"  
         )
 
         response_message = response.choices[0].message
