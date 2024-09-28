@@ -115,7 +115,7 @@ if "pdfs_uploaded" in st.session_state:
         ]
         
         messages = [
-            {"role": "user", "content": "Which of the courses are related to AI?"},
+            {"role": "user", "content": user_question},
             {"role": "system", "content": "You must use the `ask_chromadb` tool to answer this question based on the documents available."}
         ]
 
