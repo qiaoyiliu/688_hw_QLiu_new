@@ -106,14 +106,12 @@ tools = [
 def call_llm_with_tools(messages, query_embedding=None):
     # If query_embedding exists, use the function call, else just ask for clarification
     function_call_data = {"name": "search_documents_in_chromadb"} if query_embedding else "auto"
-    tool_functions_data = {"search_documents_in_chromadb": search_documents_in_chromadb(query_embedding)} if query_embedding else None
 
-    response = openai.chat.completions.create(
+    response = st.session_state.openai_client.chat.completions.create(
         model="gpt-4o-mini",  # Use the appropriate model
         messages=messages,
         functions=tools,
-        function_call=function_call_data,  # Auto call function only if query_embedding exists
-        tool_functions=tool_functions_data  # Pass tool function if required
+        function_call=function_call_data  # Auto call function only if query_embedding exists
     )
 
     return response['choices'][0].get('message'), response['choices'][0].get('function_call')
