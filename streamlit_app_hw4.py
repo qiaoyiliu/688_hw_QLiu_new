@@ -32,7 +32,7 @@ if "openai_client" not in st.session_state:
 
 
 if "HW4_vectorDB" not in st.session_state and "openai_client" in st.session_state:
-    st.session_state.Lab4_vectorDB = chroma_client.get_or_create_collection(name="Lab4Collection")
+    st.session_state.HW4_vectorDB = chroma_client.get_or_create_collection(name="HW4Collection")
 
 
 def add_to_collection(collection, text, filename):
