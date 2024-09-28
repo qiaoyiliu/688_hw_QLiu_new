@@ -77,13 +77,16 @@ if "pdfs_uploaded" in st.session_state:
                 dict: The query results from ChromaDB.
             """
             try:
+                st.write(f"Querying ChromaDB with embedding: {query_embedding}")
                 results = collection.query(
                     query_embeddings=[query_embedding],  
                     n_results=n_results                  
                 )
+                st.write(f"ChromaDB query results: {results}")
                 return results
             
             except Exception as e:
+                st.write(f"Query failed with error: {e}")
                 return f"Query failed with error: {e}"
 
         tools = [
