@@ -115,7 +115,7 @@ if "pdfs_uploaded" in st.session_state:
         ]
         
         messages = [
-            {"role": "user", "content": user_question},
+            {"role": "user", "content": "Which of the courses are related to AI?"},
             {"role": "system", "content": "You must use the `ask_chromadb` tool to answer this question based on the documents available."}
         ]
 
@@ -128,6 +128,7 @@ if "pdfs_uploaded" in st.session_state:
 
         response_message = response.choices[0].message
         messages.append(response_message)
+        print(response_message)
 
         tool_calls = response_message.tool_calls
 
