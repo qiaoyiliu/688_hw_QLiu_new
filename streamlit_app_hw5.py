@@ -56,8 +56,8 @@ if uploaded_files:
 if "pdfs_uploaded" in st.session_state:
     st.subheader("Step 2: Ask Questions")
     
-    #user_question = st.text_input("Enter your question:")
-    user_question = "who teaches IST736 text mining?"
+    user_question = st.text_input("Enter your question:")
+    #user_question = "who teaches IST736 text mining?"
 
     if st.button("Submit Question") and user_question:
         query_response = st.session_state.openai_client.embeddings.create(
@@ -119,7 +119,7 @@ if "pdfs_uploaded" in st.session_state:
         ]
         
         messages = [
-            {"role": "user", "content": user_question},
+            {"role": "user", "content": query_embedding},
             {"role": "system", "content": "You must use the `ask_chromadb` tool to answer this question based on the documents available."}
         ]
 
