@@ -56,7 +56,8 @@ if uploaded_files:
 if "pdfs_uploaded" in st.session_state:
     st.subheader("Step 2: Ask Questions")
     
-    user_question = st.text_input("Enter your question:")
+    #user_question = st.text_input("Enter your question:")
+    user_question = "who teaches IST736 text mining?"
 
     if st.button("Submit Question") and user_question:
         query_response = st.session_state.openai_client.embeddings.create(
