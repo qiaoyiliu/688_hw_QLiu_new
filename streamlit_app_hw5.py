@@ -137,14 +137,24 @@ if st.button("Get Course Information"):
         messages.append({"role": "user", "content": user_query})
 
         # Call the LLM with the tool for course info retrieval
-        chat_response = chat_completion_request(messages, tools=tools, model=GPT_MODEL)
-        
-        # Extract the tool response, and pass it as natural language response
-        if chat_response.choices[0].message.tool_calls:
-            tool_call = chat_response.choices[0].message.tool_calls[0]
-            
-            # Process the relevant course info using the function call
-            course_info = relevant_course_info(location=tool_call.arguments['location'], format=tool_call.arguments['format'], chromadb_collection=st.session_state.HW5_vectorDB)
+        # After calling the LLM with the tool for course info retrieval
+chat_response = chat_completion_request(messages, tools=tools, model=GPT_MODEL)
+
+# Debugging: Print the full response to check its structure
+st.write(chat_response)
+
+# Check if there are any tool calls in the response
+if 'choices' in chat_response and chat_response.choices[0].message.get('tool_calls'):
+    tool_call = chat_response.choices[0].message.tool_calls[0]
+    
+    # Safely access arguments within the tool call
+    if 'arguments' in tool_call:
+        # Process the relevant course info using the function call
+        location = tool_call['arguments'].get('location')
+        format = tool_call['arguments'].get('format')
+
+        if location and format:
+            course_info = relevant_course_info(location=location, format=format, chromadb_collection=st.session_state.HW5_vectorDB)
             
             # Return the course info in natural language
             if course_info:
@@ -152,4 +162,6 @@ if st.button("Get Course Information"):
             else:
                 st.error("Could not retrieve relevant course information.")
     else:
-        st.error("Please upload course PDFs first or enter a valid query.")
+        st.error("Tool call did not return expected arguments.")
+else:
+    st.error("No tool calls were made by the assistant.")
