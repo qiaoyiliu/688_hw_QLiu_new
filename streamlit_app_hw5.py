@@ -1,26 +1,26 @@
 import streamlit as st
-import chromadb
 import openai
+import chromadb
 import pdfplumber
 
-# Initialize ChromaDB client
+# ChromaDB client setup
 chroma_client = chromadb.PersistentClient(path="~/embeddings")
 
-# OpenAI setup
+# OpenAI API key setup
 if "openai_client" not in st.session_state:
     openai_api_key = st.secrets['OPENAI_API_KEY']
     if openai_api_key:
         st.session_state.openai_client = openai
         openai.api_key = openai_api_key
 
+# Upload PDFs and Create ChromaDB Collection
 st.subheader("Step 1: Upload PDFs")
 uploaded_files = st.file_uploader("Upload a document (.pdf)", type=("pdf"), accept_multiple_files=True)
 
-# Get or create ChromaDB collection
 if "HW5_vectorDB" not in st.session_state and "openai_client" in st.session_state:
     st.session_state.HW5_vectorDB = chroma_client.get_or_create_collection(name="HW5Collection")
 
-# Function to read PDFs
+# Function to read the PDF file
 def read_pdf(file):
     file_name = file.name
     pdf_content = ""
@@ -29,7 +29,7 @@ def read_pdf(file):
             pdf_content += page.extract_text()
     return file_name, pdf_content
 
-# Function to add PDF content to ChromaDB
+# Function to add documents to the ChromaDB collection
 def add_to_collection(collection, text, filename):
     openai_client = st.session_state.openai_client
     response = openai_client.embeddings.create(
@@ -43,7 +43,7 @@ def add_to_collection(collection, text, filename):
         embeddings=[embedding]
     )
 
-# Process PDF uploads
+# Upload and process PDF files
 if uploaded_files:
     if st.button("Finish Upload and Process PDFs"):
         for file in uploaded_files:
@@ -52,67 +52,51 @@ if uploaded_files:
             st.success(f"Document '{filename}' added to the vector DB.")
         st.session_state.pdfs_uploaded = True
 
-# Step 2: Function to retrieve relevant course info based on user's query
-def relevant_course_info(location, format, chromadb_collection):
-    openai_client = st.session_state.openai_client
-    
-    # Embed the user query to compare with stored documents
-    response = openai_client.embeddings.create(
-        input=location,  # Use 'location' as the user's course query
-        model="text-embedding-3-small"
-    )
-    query_embedding = response.data[0].embedding
-    
-    # Query the ChromaDB collection
-    results = chromadb_collection.query(
-        query_embeddings=[query_embedding],
-        n_results=3  # Retrieve top 3 most relevant documents
+# Tool function for retrieving relevant course information from ChromaDB
+def relevant_course_info(location):
+    # Query ChromaDB to retrieve relevant course details
+    collection = st.session_state.HW5_vectorDB
+    results = collection.query(
+        query_texts=[location],
+        n_results=3  # Retrieve top 3 relevant documents
     )
     
-    if not results['documents']:
-        st.error("No relevant course information found.")
-        return None
+    if results['documents']:
+        return results['documents'][0]  # Return the most relevant course information
+    else:
+        return "No relevant course found."
 
-    # Display the most relevant course information
-    top_course_info = results['documents'][0]
-    return top_course_info
-
-# Define tools using function format
+# Defining tools for the LLM
 tools = [
     {
         "type": "function",
         "function": {
             "name": "relevant_course_info",
-            "description": "Retrieve relevant course information based on user query",
+            "description": "Retrieve relevant course information from the ChromaDB collection.",
             "parameters": {
                 "type": "object",
                 "properties": {
                     "location": {
                         "type": "string",
-                        "description": "The course name or question the user has about the course.",
-                    },
-                    "format": {
-                        "type": "string",
-                        "enum": ["celsius", "fahrenheit"],  # Keeping it for structure, can adjust for courses
-                        "description": "The format of the answer (useful for structuring the response).",
-                    },
+                        "description": "The course name or topic, e.g., 'AI requirements'."
+                    }
                 },
-                "required": ["location", "format"],
+                "required": ["location"]
             },
         }
     }
 ]
 
-GPT_MODEL = "gpt-4o-mini"
-client = openai
+# Chat completion request function
+GPT_MODEL = "gpt-4o-mini"  # Update to use 'gpt-4o-mini'
 
 def chat_completion_request(messages, tools=None, tool_choice=None, model=GPT_MODEL):
     try:
-        response = client.chat.completions.create(
+        response = openai.ChatCompletion.create(
             model=model,
             messages=messages,
-            tools=tools,
-            tool_choice="auto",
+            functions=tools,
+            function_call="auto"
         )
         return response
     except Exception as e:
@@ -120,32 +104,36 @@ def chat_completion_request(messages, tools=None, tool_choice=None, model=GPT_MO
         print(f"Exception: {e}")
         return e
 
-# Step 3: Input for user to ask a course-related question
-st.subheader("Step 2: Ask about a course")
-user_query = st.text_input("Enter your course-related question (e.g., 'Tell me about AI course requirements'): ")
+# Initialize conversation messages
+messages = []
+messages.append({"role": "system", "content": "You can retrieve course information from uploaded PDFs."})
 
-# Button to trigger course information retrieval
-if st.button("Get Course Information"):
-    if user_query and "HW5_vectorDB" in st.session_state:
-        # Messages for LLM interaction
-        messages = []
-        messages.append({"role": "system", "content": "Answer the user’s course-related questions by retrieving relevant information."})
-        messages.append({"role": "user", "content": user_query})
+# Example question from the user
+messages.append({"role": "user", "content": "Tell me more about AI course requirements"})
 
-        # Call the LLM with the tool for course info retrieval
-        chat_response = chat_completion_request(messages, tools=tools, model=GPT_MODEL)
-        
-        # Extract the tool response, and pass it as natural language response
-        if chat_response.choices[0].message.tool_calls:
-            tool_call = chat_response.choices[0].message.tool_calls[0]
-            
-            # Process the relevant course info using the function call
-            course_info = relevant_course_info(location=tool_call.arguments['location'], format=tool_call.arguments['format'], chromadb_collection=st.session_state.HW5_vectorDB)
-            
-            # Return the course info in natural language
-            if course_info:
-                st.write(f"The most relevant course information: {course_info}")
-            else:
-                st.error("Could not retrieve relevant course information.")
-    else:
-        st.error("Please upload course PDFs first or enter a valid query.")
+# Send chat request to the model and retrieve response
+chat_response = chat_completion_request(
+    messages=messages,
+    tools=tools,
+    model=GPT_MODEL
+)
+
+# Check if the LLM makes a tool call
+if "function_call" in chat_response['choices'][0]['message']:
+    tool_call = chat_response['choices'][0]['message']['function_call']
+    # Execute the tool and retrieve course info
+    course_info = relevant_course_info(location=tool_call['arguments']['location'])
+    
+    # Pass course info back to LLM for natural language response
+    messages.append({"role": "assistant", "content": f"The details for {tool_call['arguments']['location']} are: {course_info}"})
+    
+    # Generate final natural language response
+    chat_response = chat_completion_request(
+        messages=messages,
+        tools=tools,
+        model=GPT_MODEL
+    )
+    assistant_message = chat_response['choices'][0]['message']['content']
+    st.write(assistant_message)
+else:
+    st.write("No tool call was made.")
