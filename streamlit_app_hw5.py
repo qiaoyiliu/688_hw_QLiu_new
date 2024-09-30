@@ -133,7 +133,7 @@ if "function_call" in chat_response['choices'][0]['message']:
         tools=tools,
         model=GPT_MODEL
     )
-    assistant_message = chat_response['choices'][0]['message']['content']
+    assistant_message = chat_response.choices[0].message.content
     st.write(assistant_message)
 else:
     st.write("No tool call was made.")
