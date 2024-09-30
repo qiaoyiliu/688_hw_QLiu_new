@@ -57,7 +57,7 @@ if uploaded_files:
         st.session_state.pdfs_uploaded = True
 
 # Step 2: Function to retrieve relevant course info based on user's query
-def relevant_course_info(location, format, chromadb_collection):
+def relevant_course_info(location, chromadb_collection):
     openai_client = st.session_state.openai_client
     
     # Embed the user query to compare with stored documents
@@ -94,14 +94,9 @@ tools = [
                     "location": {
                         "type": "string",
                         "description": "The course name or question the user has about the course.",
-                    },
-                    "format": {
-                        "type": "string",
-                        "enum": ["celsius", "fahrenheit"],  # Keeping it for structure, can adjust for courses
-                        "description": "The format of the answer (useful for structuring the response).",
-                    },
+                    }
                 },
-                "required": ["location", "format"],
+                "required": ["location"],
             },
         }
     }
@@ -137,26 +132,28 @@ if st.button("Get Course Information"):
         messages.append({"role": "system", "content": "Answer the user’s course-related questions by retrieving relevant information."})
         messages.append({"role": "user", "content": user_query})
 
-        # Debugging: Print the messages to ensure they are created correctly
-        st.write("Messages: ", messages)
-        
         # Call the LLM with the tool for course info retrieval
         chat_response = chat_completion_request(messages, tools=tools, model=GPT_MODEL)
         
         # Debugging: Print the full response to check its structure
-        st.write(chat_response)
+        st.write("Chat response: ", chat_response)
 
         # Check if there are any tool calls in the response
-        if 'choices' in chat_response and chat_response.choices[0].message.get('tool_calls'):
+        if 'choices' in chat_response and chat_response.choices[0].message.tool_calls:
             tool_call = chat_response.choices[0].message.tool_calls[0]
             
             # Safely access arguments within the tool call
-            if 'arguments' in tool_call:
-                location = tool_call['arguments'].get('location')
-                format = tool_call['arguments'].get('format')
+            if hasattr(tool_call, 'arguments'):
+                # Parse the arguments from the tool call
+                arguments = tool_call.arguments
+                location = arguments.get('location')
 
-                if location and format:
-                    course_info = relevant_course_info(location=location, format=format, chromadb_collection=st.session_state.HW5_vectorDB)
+                # Debugging: Print extracted argument
+                st.write(f"Location: {location}")
+                
+                # Call the relevant_course_info function if arguments exist
+                if location:
+                    course_info = relevant_course_info(location=location, chromadb_collection=st.session_state.HW5_vectorDB)
                     
                     # Return the course info in natural language
                     if course_info:
