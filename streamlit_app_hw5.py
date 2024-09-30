@@ -123,8 +123,8 @@ chat_response = chat_completion_request(
 )
 
 # Check if the LLM makes a tool call
-if "function_call" in chat_response.choices[0].message:
-    tool_call = chat_response.choices[0].message.function_call
+if "function_call" in chat_response['choices'][0]['message']:
+    tool_call = chat_response['choices'][0]['message']['function_call']
     # Execute the tool and retrieve course info
     course_info = relevant_course_info(location=tool_call['arguments']['location'])
     
