@@ -1,12 +1,7 @@
 import streamlit as st
 import openai
-import os
-import pdfplumber
-__import__('pysqlite3')
-import sys
-sys.modules['sqlite3'] = sys.modules.pop('pysqlite3')
 import chromadb
-import json
+import pdfplumber
 
 # ChromaDB client setup
 chroma_client = chromadb.PersistentClient(path="~/embeddings")
@@ -97,8 +92,7 @@ GPT_MODEL = "gpt-4o-mini"  # Update to use 'gpt-4o-mini'
 
 def chat_completion_request(messages, tools=None, tool_choice=None, model=GPT_MODEL):
     try:
-        openai_client = st.session_state.openai_client
-        response = openai_client.chat.completion.create(
+        response = openai.ChatCompletion.create(
             model=model,
             messages=messages,
             functions=tools,
@@ -124,8 +118,22 @@ chat_response = chat_completion_request(
     model=GPT_MODEL
 )
 
-assistant_message = chat_response.choices[0].message.tool_calls
-st.write(assistant_message)
-
-
-
+# Check if the LLM makes a tool call
+if "function_call" in chat_response['choices'][0]['message']:
+    tool_call = chat_response['choices'][0]['message']['function_call']
+    # Execute the tool and retrieve course info
+    course_info = relevant_course_info(location=tool_call['arguments']['location'])
+    
+    # Pass course info back to LLM for natural language response
+    messages.append({"role": "assistant", "content": f"The details for {tool_call['arguments']['location']} are: {course_info}"})
+    
+    # Generate final natural language response
+    chat_response = chat_completion_request(
+        messages=messages,
+        tools=tools,
+        model=GPT_MODEL
+    )
+    assistant_message = chat_response['choices'][0]['message']['content']
+    st.write(assistant_message)
+else:
+    st.write("No tool call was made.")
