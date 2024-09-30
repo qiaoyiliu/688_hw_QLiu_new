@@ -131,37 +131,41 @@ user_query = st.text_input("Enter your course-related question (e.g., 'Tell me a
 # Button to trigger course information retrieval
 if st.button("Get Course Information"):
     if user_query and "HW5_vectorDB" in st.session_state:
-        # Messages for LLM interaction
+        
+        # Make sure 'messages' is defined before using it
         messages = []
         messages.append({"role": "system", "content": "Answer the user’s course-related questions by retrieving relevant information."})
         messages.append({"role": "user", "content": user_query})
 
+        # Debugging: Print the messages to ensure they are created correctly
+        st.write("Messages: ", messages)
+        
         # Call the LLM with the tool for course info retrieval
-        # After calling the LLM with the tool for course info retrieval
-chat_response = chat_completion_request(messages, tools=tools, model=GPT_MODEL)
+        chat_response = chat_completion_request(messages, tools=tools, model=GPT_MODEL)
+        
+        # Debugging: Print the full response to check its structure
+        st.write(chat_response)
 
-# Debugging: Print the full response to check its structure
-st.write(chat_response)
-
-# Check if there are any tool calls in the response
-if 'choices' in chat_response and chat_response.choices[0].message.get('tool_calls'):
-    tool_call = chat_response.choices[0].message.tool_calls[0]
-    
-    # Safely access arguments within the tool call
-    if 'arguments' in tool_call:
-        # Process the relevant course info using the function call
-        location = tool_call['arguments'].get('location')
-        format = tool_call['arguments'].get('format')
-
-        if location and format:
-            course_info = relevant_course_info(location=location, format=format, chromadb_collection=st.session_state.HW5_vectorDB)
+        # Check if there are any tool calls in the response
+        if 'choices' in chat_response and chat_response.choices[0].message.get('tool_calls'):
+            tool_call = chat_response.choices[0].message.tool_calls[0]
             
-            # Return the course info in natural language
-            if course_info:
-                st.write(f"The most relevant course information: {course_info}")
+            # Safely access arguments within the tool call
+            if 'arguments' in tool_call:
+                location = tool_call['arguments'].get('location')
+                format = tool_call['arguments'].get('format')
+
+                if location and format:
+                    course_info = relevant_course_info(location=location, format=format, chromadb_collection=st.session_state.HW5_vectorDB)
+                    
+                    # Return the course info in natural language
+                    if course_info:
+                        st.write(f"The most relevant course information: {course_info}")
+                    else:
+                        st.error("Could not retrieve relevant course information.")
             else:
-                st.error("Could not retrieve relevant course information.")
+                st.error("Tool call did not return expected arguments.")
+        else:
+            st.error("No tool calls were made by the assistant.")
     else:
-        st.error("Tool call did not return expected arguments.")
-else:
-    st.error("No tool calls were made by the assistant.")
+        st.error("Please upload course PDFs first or enter a valid query.")
