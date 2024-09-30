@@ -134,8 +134,18 @@ if st.button("Get Course Information"):
 
         # Call the LLM with the tool for course info retrieval
         chat_response = chat_completion_request(messages, tools=tools, model=GPT_MODEL)
-        assistant_message = chat_response.choices[0].message.tool_calls
-
-        st.write(assistant_message)  # Display the response from the LLM
+        
+        # Extract the tool response, and pass it as natural language response
+        if chat_response.choices[0].message.tool_calls:
+            tool_call = chat_response.choices[0].message.tool_calls[0]
+            
+            # Process the relevant course info using the function call
+            course_info = relevant_course_info(location=tool_call.arguments['location'], format=tool_call.arguments['format'], chromadb_collection=st.session_state.HW5_vectorDB)
+            
+            # Return the course info in natural language
+            if course_info:
+                st.write(f"The most relevant course information: {course_info}")
+            else:
+                st.error("Could not retrieve relevant course information.")
     else:
         st.error("Please upload course PDFs first or enter a valid query.")
