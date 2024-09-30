@@ -97,7 +97,8 @@ GPT_MODEL = "gpt-4o-mini"  # Update to use 'gpt-4o-mini'
 
 def chat_completion_request(messages, tools=None, tool_choice=None, model=GPT_MODEL):
     try:
-        response = openai.ChatCompletion.create(
+        openai_client = st.session_state.openai_client
+        response = openai_client.chat.completion.create(
             model=model,
             messages=messages,
             functions=tools,
@@ -123,33 +124,8 @@ chat_response = chat_completion_request(
     model=GPT_MODEL
 )
 
-# Check if the model makes a tool call
-if 'function_call' in chat_response['choices'][0]['message']:
-    tool_call = chat_response['choices'][0]['message']['function_call']
+assistant_message = chat_response.choices[0].message.tool_calls
+st.write(assistant_message)
 
-    # Retrieve the arguments from the tool call
-    location = json.loads(tool_call['arguments'])['location']
 
-    # Call your function to retrieve relevant course information
-    course_info = relevant_course_info(location=location)
-
-    # Prepare a message based on the course information retrieved
-    # Pass the course info back to the LLM to generate a human-readable response
-    messages.append({
-        "role": "assistant",
-        "content": f"The relevant information for the course is: {course_info}"
-    })
-
-    # Send the updated message with the course info for the LLM to generate a final answer
-    chat_response_final = client.chat_completions.create(
-        model=GPT_MODEL,
-        messages=messages,
-    )
-
-    # Display the LLM's final natural language response
-    assistant_message = chat_response_final['choices'][0]['message']['content']
-    st.write(assistant_message)
-
-else:
-    st.write("No tool call detected.")
 
