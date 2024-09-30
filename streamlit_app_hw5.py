@@ -6,6 +6,7 @@ __import__('pysqlite3')
 import sys
 sys.modules['sqlite3'] = sys.modules.pop('pysqlite3')
 import chromadb
+import json
 
 # ChromaDB client setup
 chroma_client = chromadb.PersistentClient(path="~/embeddings")
@@ -122,7 +123,7 @@ chat_response = chat_completion_request(
     model=GPT_MODEL
 )
 
-# Check if the LLM makes a tool call
+# Check if the model makes a tool call
 if 'function_call' in chat_response['choices'][0]['message']:
     tool_call = chat_response['choices'][0]['message']['function_call']
 
@@ -132,10 +133,23 @@ if 'function_call' in chat_response['choices'][0]['message']:
     # Call your function to retrieve relevant course information
     course_info = relevant_course_info(location=location)
 
-    # You can now display the retrieved course information
-    st.write(course_info)
+    # Prepare a message based on the course information retrieved
+    # Pass the course info back to the LLM to generate a human-readable response
+    messages.append({
+        "role": "assistant",
+        "content": f"The relevant information for the course is: {course_info}"
+    })
 
-# Otherwise, display the LLM's natural language response
-else:
-    assistant_message = chat_response['choices'][0]['message']['content']
+    # Send the updated message with the course info for the LLM to generate a final answer
+    chat_response_final = client.chat_completions.create(
+        model=GPT_MODEL,
+        messages=messages,
+    )
+
+    # Display the LLM's final natural language response
+    assistant_message = chat_response_final['choices'][0]['message']['content']
     st.write(assistant_message)
+
+else:
+    st.write("No tool call detected.")
+
