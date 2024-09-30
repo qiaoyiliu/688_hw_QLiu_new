@@ -123,21 +123,19 @@ chat_response = chat_completion_request(
 )
 
 # Check if the LLM makes a tool call
-if "function_call" in chat_response.choices[0].message:
-    tool_call = chat_response.choices[0].message.function_call
-    # Execute the tool and retrieve course info
-    course_info = relevant_course_info(location=tool_call['arguments']['location'])
-    
-    # Pass course info back to LLM for natural language response
-    messages.append({"role": "assistant", "content": f"The details for {tool_call['arguments']['location']} are: {course_info}"})
-    
-    # Generate final natural language response
-    chat_response = chat_completion_request(
-        messages=messages,
-        tools=tools,
-        model=GPT_MODEL
-    )
-    assistant_message = chat_response.choices[0].message.content
-    st.write(assistant_message)
+if 'function_call' in chat_response['choices'][0]['message']:
+    tool_call = chat_response['choices'][0]['message']['function_call']
+
+    # Retrieve the arguments from the tool call
+    location = json.loads(tool_call['arguments'])['location']
+
+    # Call your function to retrieve relevant course information
+    course_info = relevant_course_info(location=location)
+
+    # You can now display the retrieved course information
+    st.write(course_info)
+
+# Otherwise, display the LLM's natural language response
 else:
-    st.write("No tool call was made.")
+    assistant_message = chat_response['choices'][0]['message']['content']
+    st.write(assistant_message)
