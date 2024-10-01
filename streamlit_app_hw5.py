@@ -106,7 +106,7 @@ system_message = '''Answer course-related questions using the knowledge gained f
 
 if "messages" not in st.session_state:
     st.session_state["messages"] = \
-        {"role": "assistant", "content": "How can I help you?"}
+        [{"role": "assistant", "content": "How can I help you?"}]
 
 # Display the chat messages in the UI
 for msg in st.session_state.messages:
