@@ -101,7 +101,6 @@ def query_chromadb(query):
 
     return relevant_documents
 
-
 # Initialize system message for chat
 system_message = '''Answer course-related questions using the knowledge gained from the context.'''
 
@@ -111,6 +110,7 @@ if "messages" not in st.session_state:
         {"role": "assistant", "content": "How can I help you?"}
     ]
 
+# Display the chat messages in the UI
 for msg in st.session_state.messages:
     if msg["role"] != "system":    
         chat_msg = st.chat_message(msg["role"])
@@ -122,8 +122,10 @@ if prompt := st.chat_input("What is up?"):
     with st.chat_message("user"):
         st.write(prompt)
     
+    # Generate response with tool assistance
+    try:
         openai_client = st.session_state.openai_client
-        response = openai_client.chat.completion.create(
+        response = openai_client.chat.completionsetion.create(
             model="gpt-4o-mini",
             messages=st.session_state.messages,
             tools=tools,
@@ -134,47 +136,58 @@ if prompt := st.chat_input("What is up?"):
 
         if tool_calls:
             # Extract tool call details
-            tool_calls_id = tool_calls[0].get("id", "")
-            tool_function_name = tool_calls[0].get("function", {}).get("name", "")
-            tool_arguments = tool_calls[0].get("function", {}).get("arguments", "{}")
-            tool_query_string = json.loads(tool_arguments).get('query', "")
+            tool_call_id = tool_calls[0].id
+            tool_function_name = tool_calls[0].function.name
+            tool_query_string = json.loads(tool_calls[0].function.arguments)
 
-            if tool_function_name == "query_chromadb":
-                # Assuming `query_chromadb` is a function that handles the ChromaDB query
-                results = query_chromadb(tool_query_string)
+            if tool_function_name == 'query_chromadb':
+                # Assuming get_relevant_docs is a function that handles document retrieval
+                results = query_chromadb(tool_query_string['query'])
+                
+                text = "\n\n".join(results)
 
-                # Append tool-based answer to the chat history
-                st.session_state.messages.append({
-                    "role": "assistant",
-                    "content": f"Results from ChromaDB query:\n{results}"
-                })
+                # Create a system message using the retrieved documents
+                system_message = f"""
+                The user has posed the following question: {tool_query_string['query']}
+                
+                Below is the relevant information extracted from the course materials:
 
-                # Display the tool's results in the UI
+                {text}
+                
+                Using this information generate a concise response.
+
+                Please be clear if you are using information from relevant course materials.
+                """
+
+                # Append the system message for the LLM to generate a response
+                st.session_state.messages.append({"role": "system", "content": system_message})
+
+                # Stream the LLM's response
+                stream = openai_client.chat.completions.create(
+                    model="gpt-4o-mini",
+                    messages=st.session_state.messages,
+                    stream=True
+                )
+
                 with st.chat_message("assistant"):
-                    st.write(f"Results from ChromaDB query:\n{results}")
-            else:
-                # Handle other tool calls here if necessary
-                pass
+                    response = st.write_stream(stream)
+
+                # Append the assistant's response to the chat history
+                st.session_state.messages.append({"role": "assistant", "content": response})
+        
         else:
-            # No tool call was made, generate a general answer using the LLM
-            fallback_messages = st.session_state.messages + [
-                {"role": "user", "content": prompt},
-                {"role": "system", "content": "Generate a general answer without specific document retrieval."}
-            ]
-            
-            # Generate a general response without tools
-            general_response = openai.ChatCompletion.create(
-                model="gpt-4o-mini",
-                messages=fallback_messages,
-                tools=None,  # No tool required for general LLM generation
-                tool_choice=None  # Ensure tool-free LLM generation
-            )
-
-            general_answer = general_response.choices[0].message['content']
-
-            # Append the general answer to the chat history
-            st.session_state.messages.append({"role": "assistant", "content": general_answer})
-
-            # Display the general answer
+            # If no tool was called, fall back to the general response
             with st.chat_message("assistant"):
-                st.write(general_answer)
+                st.write(response_message['content'])
+            
+            # Append the general response to the chat history
+            st.session_state.messages.append({"role": "assistant", "content": response_message['content']})
+    
+    except Exception as e:
+        st.error(f"An error occurred: {e}")
+        st.session_state.messages.append({
+            "role": "assistant",
+            "content": "Sorry, I'm unable to process the request right now."
+        })
+        with st.chat_message("assistant"):
+            st.write("Sorry, I'm unable to process the request right now.")
