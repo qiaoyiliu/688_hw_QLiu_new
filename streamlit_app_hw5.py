@@ -132,23 +132,21 @@ if prompt := st.chat_input("What is up?"):
             tool_choice="auto",  
         )
         response_message = response.choices[0].message
-        tool_calls = response_message.get("tool_calls", [])
+        tool_call = response_message.get("function_call")
 
-        if tool_calls:
-            # Extract tool call details
-            tool_call_id = tool_calls[0].id
-            tool_function_name = tool_calls[0].function.name
-            tool_query_string = json.loads(tool_calls[0].function.arguments)
+        if tool_call:
+            tool_function_name = tool_call["name"]
+            tool_arguments = json.loads(tool_call["arguments"])
 
             if tool_function_name == 'query_chromadb':
                 # Assuming get_relevant_docs is a function that handles document retrieval
-                results = query_chromadb(tool_query_string['query'])
+                results = query_chromadb(tool_arguments['query'])
                 
                 text = "\n\n".join(results)
 
                 # Create a system message using the retrieved documents
                 system_message = f"""
-                The user has posed the following question: {tool_query_string['query']}
+                The user has posed the following question: {tool_arguments['query']}
                 
                 Below is the relevant information extracted from the course materials:
 
@@ -170,10 +168,11 @@ if prompt := st.chat_input("What is up?"):
                 )
 
                 with st.chat_message("assistant"):
-                    response = st.write_stream(stream)
+                    for chunk in stream:
+                        st.write(chunk.choices[0].delta.get("content", ""))
 
                 # Append the assistant's response to the chat history
-                st.session_state.messages.append({"role": "assistant", "content": response})
+                st.session_state.messages.append({"role": "assistant", "content": text})
         
         else:
             # If no tool was called, fall back to the general response
