@@ -7,33 +7,33 @@ import sys
 sys.modules['sqlite3'] = sys.modules.pop('pysqlite3')
 import chromadb
 
-# Initialize ChromaDB client
+st.title("Joy's HW5")
+
+# Initialize ChromaDB Persistent Client
 chroma_client = chromadb.PersistentClient(path="~/embeddings")
 
-# OpenAI setup
-if "openai_client" not in st.session_state:
-    openai_api_key = st.secrets['OPENAI_API_KEY']
-    if openai_api_key:
-        st.session_state.openai_client = openai
-        openai.api_key = openai_api_key
-
-st.subheader("Step 1: Upload PDFs")
-uploaded_files = st.file_uploader("Upload a document (.pdf)", type=("pdf"), accept_multiple_files=True)
-
-# Get or create ChromaDB collection
-if "HW5_vectorDB" not in st.session_state and "openai_client" in st.session_state:
-    st.session_state.HW5_vectorDB = chroma_client.get_or_create_collection(name="HW5Collection")
-
-# Function to read PDFs
 def read_pdf(file):
     file_name = file.name
     pdf_content = ""
     with pdfplumber.open(file) as pdf:
         for page in pdf.pages:
             pdf_content += page.extract_text()
-    return file_name, pdf_content
+        return file_name, pdf_content
 
-# Function to add PDF content to ChromaDB
+# Upload PDFs
+uploaded_files = st.file_uploader("Upload a document (.pdf)", type=("pdf"), accept_multiple_files=True)
+
+if "openai_client" not in st.session_state:
+    openai_api_key = st.secrets['OPENAI_API_KEY']
+    if openai_api_key:
+        st.session_state.openai_client = openai
+        openai.api_key = openai_api_key
+
+# Create or retrieve the ChromaDB collection
+if "HW5_vectorDB" not in st.session_state and "openai_client" in st.session_state:
+    st.session_state.HW5_vectorDB = chroma_client.get_or_create_collection(name="HW5Collection")
+
+# Function to add documents to ChromaDB
 def add_to_collection(collection, text, filename):
     openai_client = st.session_state.openai_client
     response = openai_client.embeddings.create(
@@ -47,61 +47,60 @@ def add_to_collection(collection, text, filename):
         embeddings=[embedding]
     )
 
-# Process PDF uploads
-if uploaded_files:
-    if st.button("Finish Upload and Process PDFs"):
-        for file in uploaded_files:
-            filename, text = read_pdf(file)
-            add_to_collection(st.session_state.HW5_vectorDB, text, filename)
-            st.success(f"Document '{filename}' added to the vector DB.")
-        st.session_state.pdfs_uploaded = True
+# Add uploaded files to the collection
+if uploaded_files is not None and "HW5_vectorDB" in st.session_state:
+    for i in uploaded_files:
+        filename, text = read_pdf(i)
+        add_to_collection(st.session_state.HW5_vectorDB, text, filename)
+        st.success(f"Document '{filename}' added to the vector DB.")
 
-# Step 2: Function to retrieve relevant course info based on user's query
-def relevant_course_info(location, chromadb_collection):
-    openai_client = st.session_state.openai_client
-    
-    # Embed the user query to compare with stored documents
-    response = openai_client.embeddings.create(
-        input=location,  # Use 'location' as the user's course query
-        model="text-embedding-3-small"
-    )
-    query_embedding = response.data[0].embedding
-    
-    # Query the ChromaDB collection
-    results = chromadb_collection.query(
-        query_embeddings=[query_embedding],
-        n_results=3  # Retrieve top 3 most relevant documents
-    )
-    
-    if not results['documents']:
-        st.error("No relevant course information found.")
-        return None
-
-    # Display the most relevant course information
-    top_course_info = results['documents'][0]
-    return top_course_info
-
-# Define tools using function format
+# Define a tool for generating the embedding and querying ChromaDB
 tools = [
     {
         "type": "function",
         "function": {
-            "name": "relevant_course_info",
-            "description": "Retrieve relevant course information based on user query",
+            "name": "query_chromadb",
+            "description": "Retrieve relevant documents from ChromaDB based on a user's query.",
             "parameters": {
                 "type": "object",
                 "properties": {
-                    "location": {
+                    "query": {
                         "type": "string",
-                        "description": "The course name or question the user has about the course.",
+                        "description": "The user's question or query.",
                     }
                 },
-                "required": ["location"],
+                "required": ["query"]
             },
         }
     }
 ]
 
+# Define the function that will be invoked by the tool
+def query_chromadb(query):
+    openai_client = st.session_state.openai_client
+    query_response = openai_client.embeddings.create(
+        input=query,
+        model="text-embedding-3-small"
+    )
+    query_embedding = query_response.data[0].embedding
+
+    # Search for the top 3 relevant documents in the ChromaDB collection
+    results = st.session_state.HW4_vectorDB.query(
+        query_embeddings=[query_embedding],
+        n_results=3
+    )
+
+    relevant_documents = []
+    if results and len(results['documents'][0]) > 0:
+        for i in range(len(results['documents'][0])):
+            relevant_text = results['documents'][0][i]
+            relevant_documents.append(relevant_text)
+    else:
+        relevant_documents = ["No relevant documents found."]
+
+    return relevant_documents
+
+# Chatbot orchestration, calling the query tool to get relevant documents
 GPT_MODEL = "gpt-4o-mini"
 client = openai
 
@@ -111,7 +110,7 @@ def chat_completion_request(messages, tools=None, tool_choice=None, model=GPT_MO
             model=model,
             messages=messages,
             tools=tools,
-            tool_choice="auto",
+            tool_choice="auto",  # Automatically choose the appropriate tool
         )
         return response
     except Exception as e:
@@ -119,50 +118,64 @@ def chat_completion_request(messages, tools=None, tool_choice=None, model=GPT_MO
         print(f"Exception: {e}")
         return e
 
-# Step 3: Input for user to ask a course-related question
-st.subheader("Step 2: Ask about a course")
-user_query = st.text_input("Enter your course-related question (e.g., 'Tell me about AI course requirements'): ")
+# Initialize system message for chat
+system_message = '''Answer course-related questions using the knowledge gained from the context.'''
 
-# Button to trigger course information retrieval
-if st.button("Get Course Information"):
-    if user_query and "HW5_vectorDB" in st.session_state:
-        
-        # Make sure 'messages' is defined before using it
-        messages = []
-        messages.append({"role": "system", "content": "Answer the user’s course-related questions by retrieving relevant information."})
-        messages.append({"role": "user", "content": user_query})
+if "messages" not in st.session_state:
+    st.session_state["messages"] = [
+        {"role": "system", "content": system_message},
+        {"role": "assistant", "content": "How can I help you?"}
+    ]
 
-        # Call the LLM with the tool for course info retrieval
-        chat_response = chat_completion_request(messages, tools=tools, model=GPT_MODEL)
-        
-        # Debugging: Print the full response to check its structure
-        st.write("Chat response: ", chat_response)
+for msg in st.session_state.messages:
+    if msg["role"] != "system":    
+        chat_msg = st.chat_message(msg["role"])
+        chat_msg.write(msg["content"])
 
-        # Check if there are any tool calls in the response
-        if 'choices' in chat_response and chat_response.choices[0].message.tool_calls:
-            tool_call = chat_response.choices[0].message.tool_calls[0]
-            
-            # Safely access arguments within the tool call
-            if hasattr(tool_call, 'arguments'):
-                # Parse the arguments from the tool call
-                arguments = tool_call.arguments
-                location = arguments.get('location')
+# User input prompt
+if prompt := st.chat_input("What is up?"):
+    # Call the tool to handle the embedding generation and document search
+    chat_response = chat_completion_request(
+        messages=st.session_state.messages,
+        tools=tools,
+        model=GPT_MODEL
+    )
 
-                # Debugging: Print extracted argument
-                st.write(f"Location: {location}")
-                
-                # Call the relevant_course_info function if arguments exist
-                if location:
-                    course_info = relevant_course_info(location=location, chromadb_collection=st.session_state.HW5_vectorDB)
-                    
-                    # Return the course info in natural language
-                    if course_info:
-                        st.write(f"The most relevant course information: {course_info}")
-                    else:
-                        st.error("Could not retrieve relevant course information.")
-            else:
-                st.error("Tool call did not return expected arguments.")
-        else:
-            st.error("No tool calls were made by the assistant.")
+    # Check if the tool 'query_chromadb' was successfully called
+    if 'tool_calls' in chat_response.choices[0].message and 'query_chromadb' in chat_response.choices[0].message.tool_calls:
+        assistant_message = chat_response.choices[0].message.tool_calls['query_chromadb']
+        relevant_documents = assistant_message.get('output', [])
+
+        # Append the user prompt and assistant's answer to the chat history
+        st.session_state.messages.append({"role": "user", "content": prompt})
+        st.session_state.messages.append({"role": "assistant", "content": f"Relevant documents:\n{relevant_documents}"})
+
+        # Display the assistant's response
+        with st.chat_message("user"):
+            st.markdown(prompt)
+        with st.chat_message("assistant"):
+            st.markdown(f"Relevant documents:\n{relevant_documents}")
     else:
-        st.error("Please upload course PDFs first or enter a valid query.")
+        # If the tool wasn't called, fall back to generating a general LLM response
+        fallback_messages = st.session_state.messages + [
+            {"role": "user", "content": prompt},
+            {"role": "system", "content": "Generate a general answer without specific document retrieval."}
+        ]
+        
+        general_response = chat_completion_request(
+            messages=fallback_messages,
+            tools=None,  # No tool required for general LLM generation
+            model=GPT_MODEL
+        )
+        
+        general_answer = general_response.choices[0].message['content']
+        
+        # Append the user prompt and general answer to the chat history
+        st.session_state.messages.append({"role": "user", "content": prompt})
+        st.session_state.messages.append({"role": "assistant", "content": general_answer})
+
+        # Display the general LLM response
+        with st.chat_message("user"):
+            st.markdown(prompt)
+        with st.chat_message("assistant"):
+            st.markdown(general_answer)
