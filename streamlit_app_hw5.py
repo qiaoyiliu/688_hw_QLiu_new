@@ -167,7 +167,7 @@ if prompt := st.chat_input("What is up?"):
             with st.chat_message("assistant"):
                 response = st.write(stream)
             # Append the assistant's response to the chat history
-            st.session_state.messages.append({"role": "assistant", "content": response_message.content})
+            st.session_state.messages.append({"role": "assistant", "content": response})
 
     else:
         # If no tool was called, fall back to the general response
