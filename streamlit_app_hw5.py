@@ -114,67 +114,68 @@ for msg in st.session_state.messages:
         chat_msg = st.chat_message(msg["role"])
         chat_msg.write(msg["content"])
 
-# User input prompt
 if prompt := st.chat_input("What is up?"):
     st.session_state.messages.append({"role": "user", "content": prompt})
     with st.chat_message("user"):
         st.write(prompt)
-    
+
     # Generate response with tool assistance
-        openai_client = st.session_state.openai_client
-        response = openai_client.chat.completions.create(
-            model="gpt-4o-mini",
-            messages=st.session_state.messages,
-            tools=tools,
-            tool_choice="auto",  
-        )
-        response_message = response.choices[0].message
-        tool_calls = response_message.tool_calls
+    openai_client = st.session_state.openai_client
+    response = openai_client.chat.completions.create(
+        model="gpt-4o-mini",
+        messages=st.session_state.messages,
+        tools=tools,
+        tool_choice="auto",  
+    )
+    response_message = response.choices[0].message
+    tool_calls = response_message.tool_calls
 
-        if tool_calls:
-            tool_function_name = tool_calls[0].function.name
-            tool_arguments = json.loads(tool_calls[0].function.arguments)
+    if tool_calls:
+        tool_function_name = tool_calls[0].function.name
+        tool_arguments = json.loads(tool_calls[0].function.arguments)
 
-            if tool_function_name == 'query_chromadb':
-                # Assuming get_relevant_docs is a function that handles document retrieval
-                results = query_chromadb(tool_arguments['query'])
-                
-                text = "\n\n".join(results)
-
-                # Create a system message using the retrieved documents
-                system_message = f"""
-                The user has posed the following question: {tool_arguments['query']}
-                
-                Below is the relevant information extracted from the course materials:
-
-                {text}
-                
-                Using this information generate a concise response.
-
-                Please be clear if you are using information from relevant course materials.
-                """
-
-                # Append the system message for the LLM to generate a response
-                st.session_state.messages.append({"role": "system", "content": system_message})
-
-                # Stream the LLM's response
-                stream = openai_client.chat.completions.create(
-                    model="gpt-4o-mini",
-                    messages=st.session_state.messages,
-                    stream=True
-                )
-
-                with st.chat_message("assistant"):
-                    response = st.write_stream(stream)
-
-                # Append the assistant's response to the chat history
-                st.session_state.messages.append({"role": "assistant", "content": response})
-        
-        else:
-            # If no tool was called, fall back to the general response
-            with st.chat_message("assistant"):
-                st.write(response_message.content)
+        if tool_function_name == 'query_chromadb':
+            # Assuming get_relevant_docs is a function that handles document retrieval
+            results = query_chromadb(tool_arguments['query'])
             
-            # Append the general response to the chat history
-            st.session_state.messages.append({"role": "assistant", "content": response_message.content})
-    
+            text = "\n\n".join(results)
+
+            # Create a system message using the retrieved documents
+            system_message = f"""
+            The user has posed the following question: {tool_arguments['query']}
+            
+            Below is the relevant information extracted from the course materials:
+
+            {text}
+            
+            Using this information generate a concise response.
+
+            Please be clear if you are using information from relevant course materials.
+            """
+
+            # Append the system message for the LLM to generate a response
+            st.session_state.messages.append({"role": "system", "content": system_message})
+
+            # Stream the LLM's response
+            stream = openai_client.chat.completions.create(
+                model="gpt-4o-mini",
+                messages=st.session_state.messages,
+                stream=True
+            )
+
+            # Display the assistant's response outside of another chat_message block
+            response_content = ""
+            for message in stream:
+                response_content += message['choices'][0]['delta'].get('content', '')
+                st.write(response_content)
+
+            # Append the assistant's response to the chat history
+            st.session_state.messages.append({"role": "assistant", "content": response_content})
+
+    else:
+        # If no tool was called, fall back to the general response
+        with st.chat_message("assistant"):
+            st.write(response_message.content)
+        
+        # Append the general response to the chat history
+        st.session_state.messages.append({"role": "assistant", "content": response_message.content})
