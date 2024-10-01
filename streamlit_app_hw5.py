@@ -178,10 +178,10 @@ if prompt := st.chat_input("What is up?"):
         else:
             # If no tool was called, fall back to the general response
             with st.chat_message("assistant"):
-                st.write(response_message['content'])
+                st.write(response_message.content)
             
             # Append the general response to the chat history
-            st.session_state.messages.append({"role": "assistant", "content": response_message['content']})
+            st.session_state.messages.append({"role": "assistant", "content": response_message.content})
     
     except Exception as e:
         st.error(f"An error occurred: {e}")
