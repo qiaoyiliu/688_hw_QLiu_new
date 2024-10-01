@@ -105,10 +105,8 @@ def query_chromadb(query):
 system_message = '''Answer course-related questions using the knowledge gained from the context.'''
 
 if "messages" not in st.session_state:
-    st.session_state["messages"] = [
-        {"role": "system", "content": system_message},
+    st.session_state["messages"] = \
         {"role": "assistant", "content": "How can I help you?"}
-    ]
 
 # Display the chat messages in the UI
 for msg in st.session_state.messages:
