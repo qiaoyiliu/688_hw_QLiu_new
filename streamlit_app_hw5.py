@@ -123,7 +123,6 @@ if prompt := st.chat_input("What is up?"):
         st.write(prompt)
     
     # Generate response with tool assistance
-    try:
         openai_client = st.session_state.openai_client
         response = openai_client.chat.completions.create(
             model="gpt-4o-mini",
@@ -132,11 +131,11 @@ if prompt := st.chat_input("What is up?"):
             tool_choice="auto",  
         )
         response_message = response.choices[0].message
-        tool_call = response_message.get("function_call")
+        tool_calls = response_message.tool_calls
 
-        if tool_call:
-            tool_function_name = tool_call["name"]
-            tool_arguments = json.loads(tool_call["arguments"])
+        if tool_calls:
+            tool_function_name = tool_calls[0].function.name
+            tool_arguments = json.loads(tool_calls[0].function.arguments)
 
             if tool_function_name == 'query_chromadb':
                 # Assuming get_relevant_docs is a function that handles document retrieval
@@ -168,11 +167,10 @@ if prompt := st.chat_input("What is up?"):
                 )
 
                 with st.chat_message("assistant"):
-                    for chunk in stream:
-                        st.write(chunk.choices[0].delta.get("content", ""))
+                    response = st.write_stream(stream)
 
                 # Append the assistant's response to the chat history
-                st.session_state.messages.append({"role": "assistant", "content": text})
+                st.session_state.messages.append({"role": "assistant", "content": response})
         
         else:
             # If no tool was called, fall back to the general response
@@ -182,11 +180,3 @@ if prompt := st.chat_input("What is up?"):
             # Append the general response to the chat history
             st.session_state.messages.append({"role": "assistant", "content": response_message.content})
     
-    except Exception as e:
-        st.error(f"An error occurred: {e}")
-        st.session_state.messages.append({
-            "role": "assistant",
-            "content": "Sorry, I'm unable to process the request right now."
-        })
-        with st.chat_message("assistant"):
-            st.write("Sorry, I'm unable to process the request right now.")
