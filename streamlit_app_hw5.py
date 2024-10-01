@@ -6,6 +6,7 @@ __import__('pysqlite3')
 import sys
 sys.modules['sqlite3'] = sys.modules.pop('pysqlite3')
 import chromadb
+import json
 
 st.title("Joy's HW5")
 
@@ -85,7 +86,7 @@ def query_chromadb(query):
     query_embedding = query_response.data[0].embedding
 
     # Search for the top 3 relevant documents in the ChromaDB collection
-    results = st.session_state.HW4_vectorDB.query(
+    results = st.session_state.HW5_vectorDB.query(
         query_embeddings=[query_embedding],
         n_results=3
     )
@@ -100,23 +101,6 @@ def query_chromadb(query):
 
     return relevant_documents
 
-# Chatbot orchestration, calling the query tool to get relevant documents
-GPT_MODEL = "gpt-4o-mini"
-client = openai
-
-def chat_completion_request(messages, tools=None, tool_choice=None, model=GPT_MODEL):
-    try:
-        response = client.chat.completions.create(
-            model=model,
-            messages=messages,
-            tools=tools,
-            tool_choice="auto",  # Automatically choose the appropriate tool
-        )
-        return response
-    except Exception as e:
-        print("Unable to generate ChatCompletion response")
-        print(f"Exception: {e}")
-        return e
 
 # Initialize system message for chat
 system_message = '''Answer course-related questions using the knowledge gained from the context.'''
@@ -134,48 +118,62 @@ for msg in st.session_state.messages:
 
 # User input prompt
 if prompt := st.chat_input("What is up?"):
-    # Call the tool to handle the embedding generation and document search
-    chat_response = chat_completion_request(
-        messages=st.session_state.messages,
-        tools=tools,
-        model=GPT_MODEL
-    )
-
-    # Check if the tool 'query_chromadb' was successfully called
-    if 'tool_calls' in chat_response.choices[0].message and 'query_chromadb' in chat_response.choices[0].message.tool_calls:
-        assistant_message = chat_response.choices[0].message.tool_calls['query_chromadb']
-        relevant_documents = assistant_message.get('output', [])
-
-        # Append the user prompt and assistant's answer to the chat history
-        st.session_state.messages.append({"role": "user", "content": prompt})
-        st.session_state.messages.append({"role": "assistant", "content": f"Relevant documents:\n{relevant_documents}"})
-
-        # Display the assistant's response
-        with st.chat_message("user"):
-            st.markdown(prompt)
-        with st.chat_message("assistant"):
-            st.markdown(f"Relevant documents:\n{relevant_documents}")
-    else:
-        # If the tool wasn't called, fall back to generating a general LLM response
-        fallback_messages = st.session_state.messages + [
-            {"role": "user", "content": prompt},
-            {"role": "system", "content": "Generate a general answer without specific document retrieval."}
-        ]
-        
-        general_response = chat_completion_request(
-            messages=fallback_messages,
-            tools=None,  # No tool required for general LLM generation
-            model=GPT_MODEL
+    st.session_state.messages.append({"role": "user", "content": prompt})
+    with st.chat_message("user"):
+        st.write(prompt)
+    
+        response = openai.ChatCompletion.create(
+            model="gpt-4o-mini",
+            messages=st.session_state.messages,
+            tools=tools,
+            tool_choice="auto",  
         )
-        
-        general_answer = general_response.choices[0].message['content']
-        
-        # Append the user prompt and general answer to the chat history
-        st.session_state.messages.append({"role": "user", "content": prompt})
-        st.session_state.messages.append({"role": "assistant", "content": general_answer})
+        response_message = response.choices[0].message
+        tool_calls = response_message.get("tool_calls", [])
 
-        # Display the general LLM response
-        with st.chat_message("user"):
-            st.markdown(prompt)
-        with st.chat_message("assistant"):
-            st.markdown(general_answer)
+        if tool_calls:
+            # Extract tool call details
+            tool_calls_id = tool_calls[0].get("id", "")
+            tool_function_name = tool_calls[0].get("function", {}).get("name", "")
+            tool_arguments = tool_calls[0].get("function", {}).get("arguments", "{}")
+            tool_query_string = json.loads(tool_arguments).get('query', "")
+
+            if tool_function_name == "query_chromadb":
+                # Assuming `query_chromadb` is a function that handles the ChromaDB query
+                results = query_chromadb(tool_query_string)
+
+                # Append tool-based answer to the chat history
+                st.session_state.messages.append({
+                    "role": "assistant",
+                    "content": f"Results from ChromaDB query:\n{results}"
+                })
+
+                # Display the tool's results in the UI
+                with st.chat_message("assistant"):
+                    st.write(f"Results from ChromaDB query:\n{results}")
+            else:
+                # Handle other tool calls here if necessary
+                pass
+        else:
+            # No tool call was made, generate a general answer using the LLM
+            fallback_messages = st.session_state.messages + [
+                {"role": "user", "content": prompt},
+                {"role": "system", "content": "Generate a general answer without specific document retrieval."}
+            ]
+            
+            # Generate a general response without tools
+            general_response = openai.ChatCompletion.create(
+                model="gpt-4o-mini",
+                messages=fallback_messages,
+                tools=None,  # No tool required for general LLM generation
+                tool_choice=None  # Ensure tool-free LLM generation
+            )
+
+            general_answer = general_response.choices[0].message['content']
+
+            # Append the general answer to the chat history
+            st.session_state.messages.append({"role": "assistant", "content": general_answer})
+
+            # Display the general answer
+            with st.chat_message("assistant"):
+                st.write(general_answer)
