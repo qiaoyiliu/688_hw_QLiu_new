@@ -164,11 +164,8 @@ if prompt := st.chat_input("What is up?"):
             )
 
             # Display the assistant's response outside of another chat_message block
-            response_content = ""
-            for message in stream:
-                response_content += message['choices'][0]['delta'].get('content', '')
-                st.write(response_content)
-
+            with st.chat_message("assistant"):
+                response = st.write(stream)
             # Append the assistant's response to the chat history
             st.session_state.messages.append({"role": "assistant", "content": response_content})
 
