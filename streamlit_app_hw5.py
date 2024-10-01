@@ -122,7 +122,8 @@ if prompt := st.chat_input("What is up?"):
     with st.chat_message("user"):
         st.write(prompt)
     
-        response = openai.ChatCompletion.create(
+        openai_client = st.session_state.openai_client
+        response = openai_client.chat.completion.create(
             model="gpt-4o-mini",
             messages=st.session_state.messages,
             tools=tools,
