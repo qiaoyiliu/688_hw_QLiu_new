@@ -9,7 +9,11 @@ import chromadb
 import json
 
 st.title("Joy's HW5")
-
+st.write(
+    "Example question I used: "
+    "Q1: which of the courses teach AI?"
+    "Q2: Tell me more about the first one."
+)
 chroma_client = chromadb.PersistentClient(path="~/embeddings")
 
 def read_pdf(file):
