@@ -125,7 +125,7 @@ if prompt := st.chat_input("What is up?"):
     # Generate response with tool assistance
     try:
         openai_client = st.session_state.openai_client
-        response = openai_client.chat.completionsetion.create(
+        response = openai_client.chat.completions.create(
             model="gpt-4o-mini",
             messages=st.session_state.messages,
             tools=tools,
